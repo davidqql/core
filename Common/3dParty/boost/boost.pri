@@ -15,11 +15,12 @@ bundle_xcframeworks {
 }
 
 core_windows {
-    VS_VERSION=140
+    VS_VERSION=141
     VS_DEBUG=
     VS_ARCH=x64
     core_debug:VS_DEBUG=gd-
     core_win_32:VS_ARCH=x32
+    vs2017:VS_VERSION=141
     vs2019:VS_VERSION=142
 
     BOOST_POSTFIX = -vc$${VS_VERSION}-mt-$${VS_DEBUG}$${VS_ARCH}-1_72
