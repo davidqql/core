@@ -1,5 +1,5 @@
 ﻿/*
- * (c) Copyright Ascensio System SIA 2010-2019
+ * (c) Copyright Ascensio System SIA 2010-2023
  *
  * This program is a free software product. You can redistribute it and/or
  * modify it under the terms of the GNU Affero General Public License (AGPL)
@@ -12,7 +12,7 @@
  * warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR  PURPOSE. For
  * details, see the GNU AGPL at: http://www.gnu.org/licenses/agpl-3.0.html
  *
- * You can contact Ascensio System SIA at 20A-12 Ernesta Birznieka-Upisha
+ * You can contact Ascensio System SIA at 20A-6 Ernesta Birznieka-Upish
  * street, Riga, Latvia, EU, LV-1050.
  *
  * The  interactive user interfaces in modified source and object code versions
@@ -106,7 +106,7 @@ FT_Error FT_Load_Glyph_Wrapper( FT_Face   face,
 	FT_Err_Invalid_Stream_Handle          = 0x28;
 	*/
 
-	if ((bHintsSupport == TRUE) && (nErr > 0x10 && nErr < 0x28))
+	if ((bHintsSupport == TRUE) && (nErr > 0x10 && nErr < 0x28 || nErr == 131))
 	{
 		int nErr2 = FT_Load_Glyph(face, glyph_index, 40970);
 

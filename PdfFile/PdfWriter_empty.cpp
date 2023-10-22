@@ -1,7 +1,38 @@
+/*
+ * (c) Copyright Ascensio System SIA 2010-2023
+ *
+ * This program is a free software product. You can redistribute it and/or
+ * modify it under the terms of the GNU Affero General Public License (AGPL)
+ * version 3 as published by the Free Software Foundation. In accordance with
+ * Section 7(a) of the GNU AGPL its Section 15 shall be amended to the effect
+ * that Ascensio System SIA expressly excludes the warranty of non-infringement
+ * of any third-party rights.
+ *
+ * This program is distributed WITHOUT ANY WARRANTY; without even the implied
+ * warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR  PURPOSE. For
+ * details, see the GNU AGPL at: http://www.gnu.org/licenses/agpl-3.0.html
+ *
+ * You can contact Ascensio System SIA at 20A-6 Ernesta Birznieka-Upish
+ * street, Riga, Latvia, EU, LV-1050.
+ *
+ * The  interactive user interfaces in modified source and object code versions
+ * of the Program must display Appropriate Legal Notices, as required under
+ * Section 5 of the GNU AGPL version 3.
+ *
+ * Pursuant to Section 7(b) of the License you must retain the original Product
+ * logo when distributing the program. Pursuant to Section 7(e) we decline to
+ * grant you any rights under trademark law for use of our trademarks.
+ *
+ * All the Product's GUI elements, including illustrations and icon sets, as
+ * well as technical writing content are licensed under the terms of the
+ * Creative Commons Attribution-ShareAlike 4.0 International. See the License
+ * terms at http://creativecommons.org/licenses/by-sa/4.0/legalcode
+ *
+ */
 #include "PdfWriter.h"
 
 #ifdef BUILDING_WASM_MODULE
-CPdfWriter::CPdfWriter(NSFonts::IApplicationFonts* pAppFonts, bool isPDFA) : m_oCommandManager(this) {}
+CPdfWriter::CPdfWriter(NSFonts::IApplicationFonts* pAppFonts, bool isPDFA, IRenderer* pRenderer) : m_oCommandManager(this) {}
 CPdfWriter::~CPdfWriter() {}
 int CPdfWriter::SaveToFile(const std::wstring& wsPath) { return 0; }
 void CPdfWriter::SetPassword(const std::wstring& wsPassword) {}
@@ -53,6 +84,10 @@ HRESULT CPdfWriter::get_BrushLinearAngle(double* dAngle) { return 0; }
 HRESULT CPdfWriter::put_BrushLinearAngle(const double& dAngle) { return 0; }
 HRESULT CPdfWriter::BrushRect(const INT& nVal, const double& dLeft, const double& dTop, const double& dWidth, const double& dHeight) { return 0; }
 HRESULT CPdfWriter::put_BrushGradientColors(LONG* pColors, double* pPositions, LONG lCount) { return 0; }
+HRESULT CPdfWriter::get_BrushTextureImage(Aggplus::CImage** pImage) { return 0; }
+HRESULT CPdfWriter::put_BrushTextureImage(Aggplus::CImage* pImage) { return 0; }
+HRESULT CPdfWriter::get_BrushTransform(Aggplus::CMatrix& oMatrix) { return 0; }
+HRESULT CPdfWriter::put_BrushTransform(const Aggplus::CMatrix& oMatrix) { return 0; }
 HRESULT CPdfWriter::get_FontName(std::wstring* wsName) { return 0; }
 HRESULT CPdfWriter::put_FontName(const std::wstring& wsName) { return 0; }
 HRESULT CPdfWriter::get_FontPath(std::wstring* wsPath) { return 0; }
@@ -95,7 +130,8 @@ HRESULT CPdfWriter::GetTransform(double* dM11, double* dM12, double* dM21, doubl
 HRESULT CPdfWriter::ResetTransform() { return 0; }
 HRESULT CPdfWriter::AddHyperlink(const double& dX, const double& dY, const double& dW, const double& dH, const std::wstring& wsUrl, const std::wstring& wsTooltip) { return 0; }
 HRESULT CPdfWriter::AddLink(const double& dX, const double& dY, const double& dW, const double& dH, const double& dDestX, const double& dDestY, const int& nPage) { return 0; }
-HRESULT CPdfWriter::AddFormField(NSFonts::IApplicationFonts* pAppFonts, IFormField* pInfo) { return 0; }
+HRESULT CPdfWriter::AddFormField(NSFonts::IApplicationFonts* pAppFonts, CFormFieldInfo* pInfo) { return 0; }
+HRESULT CPdfWriter::AddAnnotField(NSFonts::IApplicationFonts* pAppFonts, CAnnotFieldInfo* pFieldInfo) { return 0; }
 HRESULT CPdfWriter::DrawImage1bpp(NSImages::CPixJbig2* pImageBuffer, const unsigned int& unWidth, const unsigned int& unHeight, const double& dX, const double& dY, const double& dW, const double& dH) { return 0; }
 HRESULT CPdfWriter::EnableBrushRect(const LONG& lEnable) { return 0; }
 HRESULT CPdfWriter::SetLinearGradient(const double& dX1, const double& dY1, const double& dX2, const double& dY2) { return 0; }
@@ -106,12 +142,13 @@ bool CPdfWriter::AddPage(int nPageIndex) { return false; }
 bool CPdfWriter::EditClose() { return false; }
 void CPdfWriter::PageRotate(int nRotate) {}
 void CPdfWriter::Sign(const double& dX, const double& dY, const double& dW, const double& dH, const std::wstring& wsPicturePath, ICertificate* pCertificate) {}
-//PdfWriter::CImageDict* CPdfWriter::LoadImage(Aggplus::CImage* pImage, const BYTE& nAlpha) { return NULL; }
+PdfWriter::CImageDict* CPdfWriter::LoadImage(Aggplus::CImage* pImage, const BYTE& nAlpha) { return NULL; }
 bool CPdfWriter::DrawImage(Aggplus::CImage* pImage, const double& dX, const double& dY, const double& dW, const double& dH, const BYTE& nAlpha) { return false; }
-//bool CPdfWriter::DrawText(unsigned char* pCodes, const unsigned int& unLen, const double& dX, const double& dY) { return false; }
+bool CPdfWriter::DrawText(unsigned char* pCodes, const unsigned int& unLen, const double& dX, const double& dY) { return false; }
+bool CPdfWriter::DrawTextToRenderer(const unsigned int* unGid, const unsigned int& unLen, const double& dX, const double& dY) { return false; }
 bool CPdfWriter::PathCommandDrawText(unsigned int* pUnicodes, unsigned int unLen, const double& dX, const double& dY, const unsigned int* pGids) { return false; }
-void CPdfWriter::UpdateFont() {}
-void CPdfWriter::GetFontPath(const std::wstring& wsFontName, const bool& bBold, const bool& bItalic, std::wstring& wsFontPath, LONG& lFaceIndex) {}
+bool CPdfWriter::UpdateFont() { return false; }
+bool CPdfWriter::GetFontPath(const std::wstring& wsFontName, const bool& bBold, const bool& bItalic, std::wstring& wsFontPath, LONG& lFaceIndex) { return false; }
 PdfWriter::CFontCidTrueType* CPdfWriter::GetFont(const std::wstring& wsFontPath, const LONG& lFontIndex) { return NULL; }
 PdfWriter::CFontCidTrueType* CPdfWriter::GetFont(const std::wstring& wsFontName, const bool& bBold, const bool& bItalic) { return NULL; }
 void CPdfWriter::UpdateTransform() {}

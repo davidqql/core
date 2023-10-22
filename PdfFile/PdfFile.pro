@@ -7,7 +7,6 @@ TEMPLATE = lib
 
 CONFIG += shared
 CONFIG += plugin
-CONFIG += core_static_link_libstd
 
 CORE_ROOT_DIR = $$PWD/..
 PWD_ROOT_DIR = $$PWD
@@ -54,12 +53,14 @@ SOURCES -= \
 SOURCES += \
     SrcReader/RendererOutputDev.cpp \
     SrcReader/Adaptors.cpp \
+    SrcReader/PdfAnnot.cpp \
     SrcReader/GfxClip.cpp
 
 HEADERS += \
     SrcReader/RendererOutputDev.h \
     SrcReader/Adaptors.h \
     SrcReader/MemoryUtils.h \
+    SrcReader/PdfAnnot.h \
     SrcReader/GfxClip.h
 
 # Base fonts

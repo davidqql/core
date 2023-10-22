@@ -1,5 +1,5 @@
 ﻿/*
- * (c) Copyright Ascensio System SIA 2010-2019
+ * (c) Copyright Ascensio System SIA 2010-2023
  *
  * This program is a free software product. You can redistribute it and/or
  * modify it under the terms of the GNU Affero General Public License (AGPL)
@@ -12,7 +12,7 @@
  * warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR  PURPOSE. For
  * details, see the GNU AGPL at: http://www.gnu.org/licenses/agpl-3.0.html
  *
- * You can contact Ascensio System SIA at 20A-12 Ernesta Birznieka-Upisha
+ * You can contact Ascensio System SIA at 20A-6 Ernesta Birznieka-Upish
  * street, Riga, Latvia, EU, LV-1050.
  *
  * The  interactive user interfaces in modified source and object code versions
@@ -62,7 +62,7 @@ namespace PdfWriter
 	{
 	public:
 		CPageTree(CXref* pXref);
-		CPageTree(CXref* pXref, bool bEmpty);
+		CPageTree();
 		void Fix();
 		void AddPage(CDictObject* pPage);
 		CObjectBase* GetObj(int nPageIndex);
@@ -83,7 +83,6 @@ namespace PdfWriter
 
 		CNumberObject* m_pCount;
 		CArrayObject*  m_pPages;
-		CXref*         m_pXref;
 	};
 	//----------------------------------------------------------------------------------------
 	// CPage
@@ -91,7 +90,7 @@ namespace PdfWriter
 	class CPage : public CDictObject
 	{
 	public:
-		CPage(CXref* pXref, CDocument* pDocument);
+		CPage(CDocument* pDocument);
 		CPage(CXref* pXref, CPageTree* pParent, CDocument* pDocument);
 		~CPage();
 
@@ -135,6 +134,7 @@ namespace PdfWriter
 		void      SetTransform(double dM11, double dM12, double dM21, double dM22, double dX, double dY);
 		void      SetExtGrState(CExtGrState* pExtGrState);
 		void      AddAnnotation(CDictObject* pAnnot);
+		bool      DeleteAnnotation(unsigned int nID);
 		void      DrawShading(CShading* pShading);
 		void      SetStrokeAlpha(unsigned char unAlpha);
 		void      SetFillAlpha(unsigned char unAlpha);
@@ -164,7 +164,7 @@ namespace PdfWriter
 
 	private:
 
-		void          Init(CXref* pXref, CDocument* pDocument);
+		void          Init(CDocument* pDocument);
 		void          EllipseArc(double dX, double dY, double dXRad, double dYRad, double dAngle1, double dAngle2, bool bClockDirection);
 		CArrayObject* GetMediaBoxItem();
 		CDictObject*  GetResourcesItem();
@@ -186,7 +186,6 @@ namespace PdfWriter
 
 		CDocument*   m_pDocument;
 		CPageTree*   m_pParent;
-		CXref*       m_pXref;
 		CPoint       m_oStartPos;          // Позиция начала текущего пата
 		CPoint       m_oCurPos;            // Текущая позиция пата
 		CPoint       m_oTextPos;           // Текущая позиция текста

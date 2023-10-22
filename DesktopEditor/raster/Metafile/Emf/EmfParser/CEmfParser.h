@@ -86,7 +86,7 @@ namespace MetaFile
 		void Read_EMR_SETLAYOUT();
 		void Read_EMR_SETBRUSHORGEX();
 		void Read_EMR_ANGLEARC();
-		void Read_EMR_ARC_BASE(TEmfRectL& oBox, TEmfPointL& oStart, TEmfPointL& oEnd, double& dStartAngle, double& dSweepAngle);
+		void Read_EMR_ARC_BASE(TRectL& oBox, TPointL& oStart, TPointL& oEnd, double& dStartAngle, double& dSweepAngle);
 		void Read_EMR_ARC();
 		void Read_EMR_ARCTO();
 		void Read_EMR_CHORD();
@@ -127,6 +127,7 @@ namespace MetaFile
 		void Read_EMR_SMALLTEXTOUT();
 		void Read_EMR_STROKEANDFILLPATH();
 		void Read_EMR_STROKEPATH();
+		void Read_EMR_GRADIENTFILL();
 
 		void Read_EMR_COMMENT();
 		void Read_EMR_FILLRGN();

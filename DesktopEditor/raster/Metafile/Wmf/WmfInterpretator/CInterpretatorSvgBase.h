@@ -46,6 +46,36 @@ namespace MetaFile
 		NSStringUtils::CStringBuilder m_oStringBuilder;
 	};
 
+	class CSvgClip
+	{
+	public:
+		CSvgClip();
+
+		void Reset();
+
+		void BeginClip();
+		void CloseClip();
+
+		bool StartedClip() const;
+		bool Empty()       const;
+
+		void AddClipValue(const std::wstring& wsId, const std::wstring& wsValue, int nClipMode = RGN_AND);
+
+		inline std::wstring GetClip()   const;
+		inline std::wstring GetClipId() const;
+	private:
+		struct TClipValue
+		{
+			std::wstring m_wsId;
+			std::wstring m_wsValue;
+			int          m_nClipMode;
+		};
+
+		std::vector<TClipValue> m_arValues;
+
+		bool m_bStartClip;
+	};
+
 	class CInterpretatorSvgBase : public IOutputDevice
 	{
 	public:
@@ -65,18 +95,27 @@ namespace MetaFile
 		void WriteNode(const std::wstring& wsNodeName, const NodeAttributes& arAttributes, const std::wstring& wsValueNode = L"");
 		void WriteNodeBegin(const std::wstring& wsNodeName, const NodeAttributes& arAttributes);
 		void WriteNodeEnd(const std::wstring& wsNodeName);
-		void WriteText(const std::wstring& wsText, const TPointD& oCoord, const TRect& oBounds = TRect(), const TPointD& oScale = TPointD(1, 1));
+		void WriteText(const std::wstring& wsText, const TPointD& oCoord, const TRectL& oBounds = TRectL(), const TPointD& oScale = TPointD(1, 1), const std::vector<double>& arDx = {});
+
+		void ResetClip() override;
+		void IntersectClip(const TRectD& oClip) override;
+		void ExcludeClip(const TRectD& oClip, const TRectD& oBB) override;
+		void PathClip(const CPath& oPath, int nClipMode, TXForm* pTransform = NULL) override;
+		void StartClipPath(unsigned int unMode, int nFillMode = -1) override {};
+		void EndClipPath(unsigned int unMode) override {};
 
 		void AddStroke(NodeAttributes &arAttributes) const;
 		void AddFill(NodeAttributes &arAttributes, double dWidth = 0, double dHeight = 0);
 		void AddTransform(NodeAttributes &arAttributes, TXForm* pTransform = NULL) const;
-		void AddClip(NodeAttributes &arAttributes);
+		void AddClip();
+		bool OpenClip();
+		void CloseClip();
 
 		void AddNoneFill(NodeAttributes &arAttributes) const;
 
 		TPointD GetCutPos() const;
 
-		std::wstring CreatePath(const IPath* pPath = NULL, const TXForm* pTransform = NULL);
+		std::wstring CreatePath(const CPath& oPath, const TXForm* pTransform = NULL);
 		std::wstring CreateHatchStyle(unsigned int unHatchStyle, double dWidth, double dHeight);
 		std::wstring CreateDibPatternStyle(IBrush *pBrush);
 		std::wstring CreatePatternStyle(IBrush *pBrush);
@@ -86,13 +125,16 @@ namespace MetaFile
 		TSvgViewport         m_oViewport;
 		TPointD              m_oSizeWindow;
 
-		std::wstring         m_wsLastClipId;
-
 		unsigned int         m_unNumberDefs;
 		std::wstring         m_wsDefs;
 
-		IMetaFileBase       *m_pParser;
-		XmlUtils::CXmlWriter m_oXmlWriter;
+		IMetaFileBase        *m_pParser;
+
+		XmlUtils::CXmlWriter *m_pXmlWriter;
+		bool                 m_bExternXmlWriter;
+
+		bool                 m_bUpdatedClip;
+		CSvgClip             m_oClip;
 
 		friend class CEmfInterpretatorSvg;
 		friend class CWmfInterpretatorSvg;

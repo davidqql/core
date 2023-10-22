@@ -1,5 +1,5 @@
 ﻿/*
- * (c) Copyright Ascensio System SIA 2010-2019
+ * (c) Copyright Ascensio System SIA 2010-2023
  *
  * This program is a free software product. You can redistribute it and/or
  * modify it under the terms of the GNU Affero General Public License (AGPL)
@@ -12,7 +12,7 @@
  * warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR  PURPOSE. For
  * details, see the GNU AGPL at: http://www.gnu.org/licenses/agpl-3.0.html
  *
- * You can contact Ascensio System SIA at 20A-12 Ernesta Birznieka-Upisha
+ * You can contact Ascensio System SIA at 20A-6 Ernesta Birznieka-Upish
  * street, Riga, Latvia, EU, LV-1050.
  *
  * The  interactive user interfaces in modified source and object code versions
@@ -82,11 +82,11 @@ class CSvmFile : virtual public IMetaFileBase
 		m_currentCharset		= 0;
 		m_currentLanguage		= 0;
 	}
-	TRect*   GetBounds()
+	TRectL*   GetBounds()
 	{
 		return &m_oBoundingBox;
 	}	
-	TRect* GetDCBounds()
+	TRectL* GetDCBounds()
 	{
 		//if (m_oHeader.mapMode.isSimple)
 		if (m_pDC->m_oMapMode.isSimple)
@@ -110,7 +110,7 @@ class CSvmFile : virtual public IMetaFileBase
 	int GetTextColor()
 	{
 		TSvmColor& oColor = m_pDC->GetTextColor();
-		return METAFILE_RGBA(oColor.r, oColor.g, oColor.b);
+		return METAFILE_RGBA(oColor.r, oColor.g, oColor.b, 0);
 	}
 	IFont*       GetFont()
 	{
@@ -147,7 +147,7 @@ class CSvmFile : virtual public IMetaFileBase
 	int GetTextBgColor()
 	{
 		TSvmColor& oColor = m_pDC->GetTextBgColor();
-		return METAFILE_RGBA(oColor.r, oColor.g, oColor.b);
+		return METAFILE_RGBA(oColor.r, oColor.g, oColor.b, 0);
 	}
 	unsigned int GetFillMode()
 	{
@@ -157,7 +157,7 @@ class CSvmFile : virtual public IMetaFileBase
 	{
 		TSvmPoint oPoint = m_pDC->GetCurPos();
 		TPointD oRes( oPoint.x,  oPoint.y);
-		TranslatePoint(oPoint.x, oPoint.y, oRes.x, oRes.y);
+		TranslatePoint(oPoint.x, oPoint.y, oRes.X, oRes.Y);
 		return oRes;
 	}
 	TXForm*      GetInverseTransform()
@@ -176,13 +176,13 @@ class CSvmFile : virtual public IMetaFileBase
 	{
 		return m_pDC->GetRop2Mode();
 	}
-	IClip*       GetClip()
+	CClip*       GetClip()
 	{
-		CSvmClip* pClip = m_pDC->GetClip();			
+		CClip* pClip = m_pDC->GetClip();
 		if (!pClip)
 			return NULL;
 
-		return (IClip*)pClip;
+		return pClip;
 	}
 	int          GetCharSpace()
 	{
@@ -217,6 +217,11 @@ class CSvmFile : virtual public IMetaFileBase
 		return AD_CLOCKWISE;
 	}
 
+	CPath* GetPath()
+	{
+		return NULL;
+	}
+
  private:
 	TSvmPoint			m_oCurrnetOffset;
 	BYTE*				m_pBufferData;
@@ -234,9 +239,9 @@ class CSvmFile : virtual public IMetaFileBase
 	unsigned int		m_unRecordPos;
 	
 	bool				m_bFirstPoint;
-	TRect				m_oBoundingBox;
+	TRectL				m_oBoundingBox;
 	//TRect				m_oRect;
-	TRect				m_oDCRect;
+	TRectL				m_oDCRect;
 
 	friend class CSvmPlayer;
 

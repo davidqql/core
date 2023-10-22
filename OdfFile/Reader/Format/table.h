@@ -1,5 +1,5 @@
 ﻿/*
- * (c) Copyright Ascensio System SIA 2010-2019
+ * (c) Copyright Ascensio System SIA 2010-2023
  *
  * This program is a free software product. You can redistribute it and/or
  * modify it under the terms of the GNU Affero General Public License (AGPL)
@@ -12,7 +12,7 @@
  * warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR  PURPOSE. For
  * details, see the GNU AGPL at: http://www.gnu.org/licenses/agpl-3.0.html
  *
- * You can contact Ascensio System SIA at 20A-12 Ernesta Birznieka-Upisha
+ * You can contact Ascensio System SIA at 20A-6 Ernesta Birznieka-Upish
  * street, Riga, Latvia, EU, LV-1050.
  *
  * The  interactive user interfaces in modified source and object code versions
@@ -147,7 +147,7 @@ public:
 
     CPDOCCORE_DEFINE_VISITABLE();
 
-    table_table_source_attlist table_table_source_attlist_;
+    table_table_source_attlist attlist_;
     table_linked_source_attlist table_linked_source_attlist_;
 
 private:
@@ -167,8 +167,7 @@ public:
     void pptx_convert(oox::pptx_conversion_context & Context) ;
 
     office_element_ptr			table_table_columns_;
-    office_element_ptr_array	table_table_column_;
-    
+    office_element_ptr_array	table_table_column_;    
 };
 
 class table_columns_no_group: public office_element
@@ -251,7 +250,7 @@ private:
     virtual void add_child_element( xml::sax * Reader, const std::wstring & Ns, const std::wstring & Name);
 
 public:
-    table_table_column_attlist	table_table_column_attlist_;
+    table_table_column_attlist	attlist_;
 
 };
 CP_REGISTER_OFFICE_ELEMENT2(table_table_column);
@@ -275,7 +274,6 @@ private:
 
 public:
     office_element_ptr_array	table_table_column_;
-
 };
 CP_REGISTER_OFFICE_ELEMENT2(table_table_columns);
 
@@ -379,7 +377,7 @@ public:
     void add_child_element( xml::sax * Reader, const std::wstring & Ns, const std::wstring & Name, document_context * Context);
     
     bool	docx_convert(oox::docx_conversion_context & Context) ;
-    int		xlsx_convert(oox::xlsx_conversion_context & Context, text_format_properties_content_ptr text_properties) ;
+    int		xlsx_convert(oox::xlsx_conversion_context & Context, text_format_properties_ptr text_properties, bool need_cache = true) ;
     bool	pptx_convert(oox::pptx_conversion_context & Context) ;
 
     office_element_ptr_array	elements_; 
@@ -482,7 +480,7 @@ private:
     virtual void add_child_element( xml::sax * Reader, const std::wstring & Ns, const std::wstring & Name);
 
 public:
-    office_element_ptr_array	table_table_row_;
+    office_element_ptr_array table_table_row_;
 
 };
 CP_REGISTER_OFFICE_ELEMENT2(table_table_rows);
@@ -647,6 +645,16 @@ public:
 	//_CP_OPT(bool)	format_cells;
 };
 CP_REGISTER_OFFICE_ELEMENT2(table_table_protection);
+//----------------------------------------------------------
+class loext_table_protection : public table_table_protection
+{
+public:
+	static const wchar_t * ns;
+	static const wchar_t * name;
+	static const xml::NodeType xml_type = xml::typeElement;
+	static const ElementType type = typeTableTableProtection;
+};
+CP_REGISTER_OFFICE_ELEMENT2(loext_table_protection);
 //--------------------------------------------------------------------------------------------
 class table_table : public office_element_impl<table_table>
 {
@@ -677,9 +685,11 @@ public:
     office_element_ptr			table_table_source_;	
 
 	office_element_ptr			conditional_formats_;
+    office_element_ptr			sparkline_groups_;
 
     office_element_ptr			table_shapes_;
 	office_element_ptr_array	table_named_;
+
 	office_element_ptr			office_forms_;
     //office-dde-source
     //table-scenario

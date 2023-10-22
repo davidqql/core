@@ -2,12 +2,14 @@
 #include "../../../BgraFrame.h"
 
 #include <algorithm>
+#include <numeric>
 #include <cmath>
+#include <stdint.h>
 
 #ifndef MININT32
-#define MAXUINT32   ((UINT32)~((UINT32)0))
-#define MAXINT32    ((INT32)(MAXUINT32 >> 1))
-#define MININT32    ((INT32)~MAXINT32)
+#define MAXUINT32   ((uint32_t)~((uint32_t)0))
+#define MAXINT32    ((int32_t)(MAXUINT32 >> 1))
+#define MININT32    ((int32_t)~MAXINT32)
 #endif
 
 namespace MetaFile
@@ -73,46 +75,55 @@ namespace MetaFile
 	};
 
 	CInterpretatorSvgBase::CInterpretatorSvgBase(IMetaFileBase *pParser, double dWidth, double dHeight)
-	    : m_oSizeWindow(dWidth, dHeight), m_unNumberDefs(0), m_pParser(pParser)
+	    : m_oSizeWindow(dWidth, dHeight), m_unNumberDefs(0), m_pParser(pParser), m_pXmlWriter(new XmlUtils::CXmlWriter()), m_bExternXmlWriter(false), m_bUpdatedClip(true)
 	{}
 
 	CInterpretatorSvgBase::~CInterpretatorSvgBase()
-	{}
+	{
+		if (!m_bExternXmlWriter)
+			RELEASEOBJECT(m_pXmlWriter);
+	}
 
 	void CInterpretatorSvgBase::SetSize(double dWidth, double dHeight)
 	{
-		m_oSizeWindow.x = dWidth;
-		m_oSizeWindow.y = dHeight;
+		m_oSizeWindow.X = dWidth;
+		m_oSizeWindow.Y = dHeight;
 	}
 
 	void CInterpretatorSvgBase::GetSize(double &dWidth, double &dHeight)
 	{
-		dWidth  = m_oSizeWindow.x;
-		dHeight = m_oSizeWindow.y;
+		dWidth  = m_oSizeWindow.X;
+		dHeight = m_oSizeWindow.Y;
 	}
 
 	void CInterpretatorSvgBase::UpdateSize()
 	{
-		if (0 != m_oSizeWindow.x && 0 == m_oSizeWindow.y)
-			m_oSizeWindow.y = m_oSizeWindow.x * (m_oViewport.GetHeight() / m_oViewport.GetWidth());
-		else if (0 == m_oSizeWindow.x && 0 != m_oSizeWindow.y)
-			m_oSizeWindow.x = m_oSizeWindow.y * (m_oViewport.GetWidth() / m_oViewport.GetHeight());
+		if (0 != m_oSizeWindow.X && 0 == m_oSizeWindow.Y)
+			m_oSizeWindow.Y = m_oSizeWindow.X * (m_oViewport.GetHeight() / m_oViewport.GetWidth());
+		else if (0 == m_oSizeWindow.X && 0 != m_oSizeWindow.Y)
+			m_oSizeWindow.X = m_oSizeWindow.Y * (m_oViewport.GetWidth() / m_oViewport.GetHeight());
 	}
 
 	void CInterpretatorSvgBase::SetXmlWriter(XmlUtils::CXmlWriter *pXmlWriter)
 	{
 		if (NULL != pXmlWriter)
-			m_oXmlWriter = *pXmlWriter;
+		{
+			if (!m_bExternXmlWriter)
+				RELEASEOBJECT(m_pXmlWriter);
+
+			m_pXmlWriter = pXmlWriter;
+			m_bExternXmlWriter = true;
+		}
 	}
 
 	XmlUtils::CXmlWriter *CInterpretatorSvgBase::GetXmlWriter()
 	{
-		return &m_oXmlWriter;
+		return m_pXmlWriter;
 	}
 
 	std::wstring CInterpretatorSvgBase::GetFile()
 	{
-		return m_oXmlWriter.GetXmlString();
+		return m_pXmlWriter->GetXmlString();
 	}
 
 	void CInterpretatorSvgBase::IncludeSvg(const std::wstring &wsSvg, const TRectD &oRect, const TRectD &oClipRect, TXForm *pTransform)
@@ -130,11 +141,11 @@ namespace MetaFile
 
 		TRectD oNewClipRect(oClipRect);
 
-		if (oNewClipRect.dLeft > oNewClipRect.dRight)
-			std::swap(oNewClipRect.dLeft, oNewClipRect.dRight);
+		if (oNewClipRect.Left > oNewClipRect.Right)
+			std::swap(oNewClipRect.Left, oNewClipRect.Right);
 
-		if (oNewClipRect.dTop > oNewClipRect.dBottom)
-			std::swap(oNewClipRect.dTop, oNewClipRect.dBottom);
+		if (oNewClipRect.Top > oNewClipRect.Bottom)
+			std::swap(oNewClipRect.Top, oNewClipRect.Bottom);
 
 		NodeAttributes arNodeAttributes;
 
@@ -144,68 +155,85 @@ namespace MetaFile
 
 		wsNewSvg.erase(unFirstPos, unSecondPos - unFirstPos);
 
-		std::wstring wsClip = L"x=\"" + ConvertToWString(oRect.dLeft) + L"\" y=\"" + ConvertToWString(oRect.dTop) + L"\" " +
-		                      L"width=\"" + ConvertToWString(oRect.dRight - oRect.dLeft) + L"\" height=\"" + ConvertToWString(oRect.dBottom - oRect.dTop) + L"\" " +
-		                      L"viewBox=\"" + ConvertToWString(oNewClipRect.dLeft) + L' ' + ConvertToWString(oNewClipRect.dTop) + L' ' + ConvertToWString(oNewClipRect.dRight - oNewClipRect.dLeft) + L' ' + ConvertToWString(oNewClipRect.dBottom - oNewClipRect.dTop) + L'\"';
+		std::wstring wsClip = L"x=\"" + ConvertToWString(oRect.Left) + L"\" y=\"" + ConvertToWString(oRect.Top) + L"\" " +
+		                      L"width=\"" + ConvertToWString(oRect.Right - oRect.Left) + L"\" height=\"" + ConvertToWString(oRect.Bottom - oRect.Top) + L"\" " +
+		                      L"viewBox=\"" + ConvertToWString(oNewClipRect.Left) + L' ' + ConvertToWString(oNewClipRect.Top) + L' ' + ConvertToWString(oNewClipRect.Right - oNewClipRect.Left) + L' ' + ConvertToWString(oNewClipRect.Bottom - oNewClipRect.Top) + L'\"';
 
 		wsNewSvg.insert(unFirstPos, wsClip);
 
-		m_oXmlWriter.WriteString(wsNewSvg);
+		m_pXmlWriter->WriteString(wsNewSvg);
 
 		WriteNodeEnd(L"g");
 	}
 
 	void CInterpretatorSvgBase::WriteNode(const std::wstring &wsNodeName, const NodeAttributes &arAttributes, const std::wstring &wsValueNode)
 	{
-		m_oXmlWriter.WriteNodeBegin(wsNodeName, true);
+		m_pXmlWriter->WriteNodeBegin(wsNodeName, true);
 
 		for (const NodeAttribute& oAttribute : arAttributes)
-		m_oXmlWriter.WriteAttribute(oAttribute.first, oAttribute.second);
+			m_pXmlWriter->WriteAttribute(oAttribute.first, oAttribute.second);
 
 		if (wsValueNode.empty())
 		{
-			m_oXmlWriter.WriteNodeEnd(wsNodeName, true, true);
+			m_pXmlWriter->WriteNodeEnd(wsNodeName, true, true);
 		}
 		else
 		{
-			m_oXmlWriter.WriteNodeEnd(wsNodeName, true, false);
-			m_oXmlWriter.WriteString (wsValueNode);
-			m_oXmlWriter.WriteNodeEnd(wsNodeName, false, false);
+			m_pXmlWriter->WriteNodeEnd(wsNodeName, true, false);
+			m_pXmlWriter->WriteString (wsValueNode);
+			m_pXmlWriter->WriteNodeEnd(wsNodeName, false, false);
 		}
 	}
 
 	void CInterpretatorSvgBase::WriteNodeBegin(const std::wstring &wsNodeName, const NodeAttributes &arAttributes)
 	{
-		m_oXmlWriter.WriteNodeBegin(wsNodeName, !arAttributes.empty());
+		m_pXmlWriter->WriteNodeBegin(wsNodeName, !arAttributes.empty());
 
 		if (!arAttributes.empty())
 		{
 			for (const NodeAttribute& oAttribute : arAttributes)
-				m_oXmlWriter.WriteAttribute(oAttribute.first, oAttribute.second);
+				m_pXmlWriter->WriteAttribute(oAttribute.first, oAttribute.second);
 
-			m_oXmlWriter.WriteNodeEnd(wsNodeName, true, false);
+			m_pXmlWriter->WriteNodeEnd(wsNodeName, true, false);
 		}
 	}
 
 	void CInterpretatorSvgBase::WriteNodeEnd(const std::wstring &wsNodeName)
 	{
-		m_oXmlWriter.WriteNodeEnd(wsNodeName, false, false);
+		m_pXmlWriter->WriteNodeEnd(wsNodeName, false, false);
 	}
 
-	void CInterpretatorSvgBase::WriteText(const std::wstring& wsText, const TPointD& oCoord, const TRect& oBounds, const TPointD& oScale)
+	static void EraseWords(std::wstring& wsString, const std::vector<std::wstring>& arWords)
+	{
+		size_t unBegin = 0;
+		for (const std::wstring& wsWord : arWords)
+		{
+			while (std::wstring::npos != (unBegin = wsString.find(wsWord)))
+				wsString.erase(unBegin, wsWord.length());
+		}
+	}
+
+	void CInterpretatorSvgBase::WriteText(const std::wstring &wsText, const TPointD &oCoord, const TRectL &oBounds, const TPointD &oScale, const std::vector<double>& arDx)
 	{
 		if (NULL == m_pParser || NULL == m_pParser->GetFont())
 			return;
 
+		const std::wstring wsNormalizedText = StringNormalization(wsText);
+
+		if (wsNormalizedText.empty())
+			return;
+
+		AddClip();
+
 		NodeAttributes arNodeAttributes;
 
-		double dXCoord = oCoord.x;
-		double dYCoord = oCoord.y;
+		double dXCoord = oCoord.X;
+		double dYCoord = oCoord.Y;
 
-		if (m_pParser->GetTextAlign() & TA_UPDATECP)
+		if (m_pParser->GetTextAlign() & TA_UPDATECP && (0. == oCoord.X && 0. == oCoord.Y))
 		{
-			dXCoord = m_pParser->GetCurPos().x;
-			dYCoord = m_pParser->GetCurPos().y;
+			dXCoord = m_pParser->GetCurPos().X;
+			dYCoord = m_pParser->GetCurPos().Y;
 		}
 
 		TXForm oTransform;
@@ -217,16 +245,13 @@ namespace MetaFile
 		{
 			std::wstring wsFillRect = L"rgb(" + INTCOLOR_TO_RGB(m_pParser->GetTextBgColor()) + L')';
 
-			NodeAttributes arGAttributes;
-			AddClip(arGAttributes);
-
-			WriteNodeBegin(L"g", arGAttributes);
+			WriteNodeBegin(L"g", {});
 			bWriteG = true;
 
-			WriteNode(L"rect", {{L"x",      ConvertToWString(oBounds.nLeft)},
-			                    {L"y",      ConvertToWString(oBounds.nTop)},
-			                    {L"width",  ConvertToWString(oBounds.nRight - oBounds.nLeft)},
-			                    {L"height", ConvertToWString(oBounds.nBottom - oBounds.nTop)},
+			WriteNode(L"rect", {{L"x",      ConvertToWString(oBounds.Left)},
+			                    {L"y",      ConvertToWString(oBounds.Top)},
+			                    {L"width",  ConvertToWString(oBounds.Right - oBounds.Left)},
+			                    {L"height", ConvertToWString(oBounds.Bottom - oBounds.Top)},
 			                    {L"fill",   wsFillRect},
 			                    {L"stroke", L"none"}});
 		}
@@ -238,6 +263,9 @@ namespace MetaFile
 
 		IFont *pFont = m_pParser->GetFont();
 
+		if (NULL == pFont)
+			return;
+
 		double dFontHeight = std::fabs(pFont->GetHeight());
 
 		if (dFontHeight < 0.01)
@@ -245,10 +273,21 @@ namespace MetaFile
 
 		arNodeAttributes.push_back({L"font-size", ConvertToWString(dFontHeight)});
 
-		std::wstring wsFaceName = pFont->GetFaceName();
+		std::wstring wsFontName = pFont->GetFaceName();
 
-		if (!wsFaceName.empty())
-			arNodeAttributes.push_back({L"font-family", wsFaceName});
+		if (!wsFontName.empty())
+		{
+			NSFonts::CFontSelectFormat oFormat;
+			oFormat.wsName = new std::wstring(pFont->GetFaceName());
+
+			NSFonts::CFontInfo *pFontInfo = m_pParser->GetFontManager()->GetFontInfoByParams(oFormat);
+
+			if (NULL != pFontInfo && !StringEquals(wsFontName, pFontInfo->m_wsFontName))
+				wsFontName = L"&apos;" + wsFontName + L"&apos;, &apos;" + pFontInfo->m_wsFontName + L"&apos;";
+		}
+
+		if (!wsFontName.empty())
+			arNodeAttributes.push_back({L"font-family", wsFontName});
 
 		if (pFont->GetWeight() > 550)
 			arNodeAttributes.push_back({L"font-weight", L"bold"});
@@ -299,18 +338,24 @@ namespace MetaFile
 
 		if (ulTextAlign == TA_RIGHT)
 		{
-			arNodeAttributes.push_back({L"text-anchor", L"end"});
+			if (arDx.empty())
+				arNodeAttributes.push_back({L"text-anchor", L"end"});
+			else
+				dXCoord -= std::accumulate(arDx.begin(), arDx.end(), 0.0);
 		}
 		else if (ulTextAlign == TA_CENTER)
 		{
-			arNodeAttributes.push_back({L"text-anchor", L"middle"});
+			if (arDx.empty())
+				arNodeAttributes.push_back({L"text-anchor", L"middle"});
+			else
+				dXCoord -= std::accumulate(arDx.begin(), arDx.end(), 0.0) / 2;
 		}
-		else //if (ulTextAlign & TA_LEFT)
+		else  //if (ulTextAlign & TA_LEFT)
 		{
 			// Ничего не делаем
 		}
 
-		if (oScale.y < -0.00001) //TODO::Тоже нужно и для dXScale
+		if (oScale.Y < -0.00001) //TODO::Тоже нужно и для dXScale
 		{
 			dYCoord += dFontHeight;
 
@@ -326,28 +371,47 @@ namespace MetaFile
 			if (m_pParser->GetTransform()->M22 < 0)
 				dEscapement = -dEscapement;
 
+			double dSin = std::sin(dEscapement * M_PI / 180.);
+
+			dYCoord -= dFontHeight * dSin;
+
+			if (oScale.Y < -0.00001)
+				dXCoord -= dFontHeight * dSin;
+
 			arNodeAttributes.push_back({L"transform", L"rotate(" + ConvertToWString(dEscapement) + L' ' + ConvertToWString(dXCoord) + L' ' + ConvertToWString(dYCoord) + L')'});
+
+			if (oScale.Y > 0.00001)
+				dXCoord -= dFontHeight * dSin;
 		}
 
 		AddTransform(arNodeAttributes, &oTransform);
 
 		arNodeAttributes.push_back({L"xml:space", L"preserve"});
 
-		if (!m_wsLastClipId.empty() && !bWriteG)
-		{
-			NodeAttributes arGAttributes;
-			AddClip(arGAttributes);
-			WriteNodeBegin(L"g", arGAttributes);
-		}
+		size_t unPosLineBreak = wsNormalizedText.find(L"\n");
 
-		size_t unPosLineBreak = wsText.find(L"\n");
+		std::wstring wsXCoord;
+
+		if (arDx.empty() || arDx.size() < wsNormalizedText.length())
+			wsXCoord = ConvertToWString(dXCoord);
+		else
+		{
+			std::vector<double> arXCoords(wsNormalizedText.length());
+
+			arXCoords[0] = dXCoord;
+
+			for (unsigned int unIndex = 1; unIndex < wsNormalizedText.length(); ++unIndex)
+				arXCoords[unIndex] = arDx[unIndex - 1] + arXCoords[unIndex - 1];
+
+			wsXCoord = ConvertToWString(arXCoords);
+		}
 
 		if (std::wstring::npos == unPosLineBreak)
 		{
-			arNodeAttributes.push_back({L"x", ConvertToWString(dXCoord)});
+			arNodeAttributes.push_back({L"x", wsXCoord});
 			arNodeAttributes.push_back({L"y", ConvertToWString(dYCoord)});
 
-			WriteNode(L"text", arNodeAttributes, StringNormalization(wsText));
+			WriteNode(L"text", arNodeAttributes, wsNormalizedText);
 		}
 		else
 		{
@@ -358,22 +422,85 @@ namespace MetaFile
 
 			do
 			{
-				std::wstring wsTemp = StringNormalization(wsText.substr(unStart, unPosLineBreak - unStart));
-
-				WriteNode(L"tspan", {{L"x", ConvertToWString(dXCoord)},
-				                     {L"y", ConvertToWString(dYNewCoord)}}, StringNormalization(wsText.substr(unStart, unPosLineBreak - unStart)));
+				WriteNode(L"tspan", {{L"x", wsXCoord},
+									 {L"y", ConvertToWString(dYNewCoord)}}, wsNormalizedText.substr(unStart, unPosLineBreak - unStart));
 
 				dYNewCoord += dFontHeight * 1.6;
-				unStart = wsText.find_first_not_of(L"\n", unPosLineBreak);
-				unPosLineBreak = wsText.find(L"\n", unStart);
+				unStart = wsNormalizedText.find_first_not_of(L"\n", unPosLineBreak);
+				unPosLineBreak = wsNormalizedText.find(L"\n", unStart);
 			}
 			while(unStart != std::wstring::npos);
 
 			WriteNodeEnd(L"text");
 		}
 
-		if (bWriteG || !m_wsLastClipId.empty())
-			m_oXmlWriter.WriteNodeEnd(L"g");
+		if (bWriteG)
+			m_pXmlWriter->WriteNodeEnd(L"g");
+	}
+
+	void CInterpretatorSvgBase::ResetClip()
+	{
+		m_oClip.Reset();
+	}
+
+	void CInterpretatorSvgBase::IntersectClip(const TRectD &oClip)
+	{
+		TXForm *pTransform = m_pParser->GetTransform();
+		
+		double dLeft   = oClip.Left;
+		double dTop    = oClip.Top;
+		double dRight  = oClip.Right;
+		double dBottom = oClip.Bottom;
+
+		pTransform->Apply(dLeft,  dTop);
+		pTransform->Apply(dRight, dBottom);
+		
+		const std::wstring wsId    = L"INTERSECTCLIP_" + ConvertToWString(++m_unNumberDefs, 0);
+		const std::wstring wsValue = L"<rect x=\"" + ConvertToWString(dLeft, 0) + L"\" y=\"" + ConvertToWString(dTop, 0) + L"\" width=\"" + ConvertToWString(dRight - dLeft, 0) + L"\" height=\"" + ConvertToWString(dBottom - dTop, 0) + L"\"/>";
+
+		m_oClip.AddClipValue(wsId, wsValue);
+	}
+
+	void CInterpretatorSvgBase::ExcludeClip(const TRectD &oClip, const TRectD &oBB)
+	{
+		TXForm *pTransform = m_pParser->GetTransform();
+		
+		double dClipLeft   = oClip.Left;
+		double dClipTop    = oClip.Top;
+		double dClipRight  = oClip.Right;
+		double dClipBottom = oClip.Bottom;
+
+		pTransform->Apply(dClipLeft, dClipTop);
+		pTransform->Apply(dClipRight, dClipBottom);
+		
+		double dBBLeft   = oBB.Left;
+		double dBBTop    = oBB.Top;
+		double dBBRight  = oBB.Right;
+		double dBBBottom = oBB.Bottom;
+
+		pTransform->Apply(dBBLeft, dBBTop);
+		pTransform->Apply(dBBRight, dBBBottom);
+
+		const std::wstring wsId    = L"EXCLUDECLIP_" + ConvertToWString(++m_unNumberDefs, 0);
+		const std::wstring wsValue = L"<path d=\"M" + ConvertToWString(dBBLeft) + L' ' + ConvertToWString(dBBTop) + L", L" + ConvertToWString(dBBRight) + L' ' + ConvertToWString(dBBTop) + L", " +
+		                             ConvertToWString(dBBRight) + L' ' + ConvertToWString(dBBBottom) + L", " + ConvertToWString(dBBLeft ) + L' ' + ConvertToWString(dBBBottom) + L", M" +
+		                             ConvertToWString(dClipLeft) + L' ' + ConvertToWString(dClipTop) + L", L" + ConvertToWString(dClipRight) + L' ' + ConvertToWString(dClipTop) + L", " +
+		                             ConvertToWString(dClipRight) + L' ' + ConvertToWString(dClipBottom) + L", " + ConvertToWString(dClipLeft) + L' ' + ConvertToWString(dClipLeft ) + L"\" clip-rule=\"evenodd\"/>";
+
+		m_oClip.AddClipValue(wsId, wsValue);
+	}
+	
+	void CInterpretatorSvgBase::PathClip(const CPath &oPath, int nClipMode, TXForm *pTransform)
+	{
+		std::wstring wsPath = CreatePath(oPath, pTransform);
+
+		if (wsPath.empty())
+			return;
+
+		const std::wstring wsClipId = L"PATHCLIP_" + ConvertToWString(++m_unNumberDefs, 0);
+		const std::wstring wsValue  = L"<path d=\"" + wsPath + L"\"/>";
+
+		m_oClip.AddClipValue(wsClipId, wsValue, nClipMode);
 	}
 
 	void CInterpretatorSvgBase::AddStroke(NodeAttributes &arAttributes) const
@@ -400,8 +527,8 @@ namespace MetaFile
 		{
 			double dScale = m_pParser->GetDpi() / 96.;
 
-			if (0 != m_oViewport.GetWidth() && 0 != m_oSizeWindow.x)
-				dScale *= m_oViewport.GetWidth() / m_oSizeWindow.x;
+			if (0 != m_oViewport.GetWidth() && 0 != m_oSizeWindow.X)
+				dScale *= m_oViewport.GetWidth() / m_oSizeWindow.X;
 
 			dStrokeWidth = dScale / std::fabs(m_pParser->GetTransform()->M11);
 		}
@@ -411,9 +538,39 @@ namespace MetaFile
 		if (pPen->GetAlpha() != 255)
 			arAttributes.push_back({L"stroke-opacity" , ConvertToWString(pPen->GetAlpha() / 255., 3)});
 
+		arAttributes.push_back({L"stroke-miterlimit", ConvertToWString(pPen->GetMiterLimit())});
+
 		unsigned int unMetaPenStyle = pPen->GetStyle();
-		//			unsigned int ulPenType      = unMetaPenStyle & PS_TYPE_MASK;
 		unsigned int ulPenStyle     = unMetaPenStyle & PS_STYLE_MASK;
+		unsigned int ulPenStartCap  = unMetaPenStyle & PS_STARTCAP_MASK;
+		unsigned int ulPenEndCap    = unMetaPenStyle & PS_ENDCAP_MASK;
+		unsigned int ulPenJoin      = unMetaPenStyle & PS_JOIN_MASK;
+
+		// svg не поддерживает разные стили для разных сторон линии
+		std::wstring wsLineCap;
+
+		if (PS_ENDCAP_ROUND == ulPenEndCap)
+			wsLineCap = L"round";
+		else if (PS_ENDCAP_SQUARE == ulPenEndCap)
+			wsLineCap = L"square";
+		else if (PS_ENDCAP_FLAT == ulPenEndCap)
+			wsLineCap = L"butt";
+
+		if (PS_STARTCAP_FLAT == ulPenStartCap)
+			wsLineCap = L"butt";
+		else if (PS_STARTCAP_SQUARE == ulPenStartCap)
+			wsLineCap = L"square";
+		else if (PS_STARTCAP_ROUND == ulPenStartCap)
+			wsLineCap = L"round";
+
+		arAttributes.push_back({L"stroke-linecap", wsLineCap});
+
+		if (PS_JOIN_MITER == ulPenJoin)
+			arAttributes.push_back({L"stroke-linejoin", L"miter"});
+		else if (PS_JOIN_BEVEL == ulPenJoin)
+			arAttributes.push_back({L"stroke-linejoin", L"bevel"});
+		else if (PS_JOIN_ROUND == ulPenJoin)
+			arAttributes.push_back({L"stroke-linejoin", L"round"});
 
 		double* arDatas = NULL;
 		unsigned int unDataSize = 0;
@@ -425,13 +582,15 @@ namespace MetaFile
 			std::wstring wsDashArray;
 
 			for (unsigned int unIndex = 0; unIndex < unDataSize; ++unIndex)
-				wsDashArray += ConvertToWString(dStrokeWidth * arDatas[unIndex]) + L' ';
-
+			{
+				if (PS_STARTCAP_ROUND == ulPenStartCap)
+					wsDashArray += ConvertToWString(dStrokeWidth * (arDatas[unIndex] - ((0 == unIndex % 2) ? 1 : -1))) + L' ';
+				else
+					wsDashArray += ConvertToWString(dStrokeWidth * arDatas[unIndex]) + L' ';
+			}
 			wsDashArray.pop_back();
 
 			arAttributes.push_back({L"stroke-dasharray", wsDashArray});
-
-			ulPenStyle = PS_USERSTYLE;
 		}
 		else if (PS_DASH == ulPenStyle)
 			arAttributes.push_back({L"stroke-dasharray", ConvertToWString(dStrokeWidth * 4) + L' ' + ConvertToWString(dStrokeWidth * 2)});
@@ -441,27 +600,6 @@ namespace MetaFile
 			arAttributes.push_back({L"stroke-dasharray", ConvertToWString(dStrokeWidth * 4) + L' ' + ConvertToWString(dStrokeWidth * 2) + L' ' + ConvertToWString(dStrokeWidth) + L' ' + ConvertToWString(dStrokeWidth * 2)});
 		else if (PS_DASHDOTDOT == ulPenStyle)
 			arAttributes.push_back({L"stroke-dasharray", ConvertToWString(dStrokeWidth * 4) + L' ' + ConvertToWString(dStrokeWidth * 2) + L' ' + ConvertToWString(dStrokeWidth) + L' ' + ConvertToWString(dStrokeWidth * 2) + L' ' + ConvertToWString(dStrokeWidth) + L' ' + ConvertToWString(dStrokeWidth * 2)});
-		else
-		{
-			unsigned int ulPenStartCap  = unMetaPenStyle & PS_STARTCAP_MASK;
-			unsigned int ulPenEndCap    = unMetaPenStyle & PS_ENDCAP_MASK;
-			unsigned int ulPenJoin      = unMetaPenStyle & PS_JOIN_MASK;
-
-			// svg не поддерживает разные стили для сторон линии
-			if (PS_STARTCAP_FLAT == ulPenStartCap || PS_ENDCAP_FLAT == ulPenEndCap)
-				arAttributes.push_back({L"stroke-linecap", L"butt"});
-			else if (PS_STARTCAP_SQUARE == ulPenStartCap || PS_ENDCAP_SQUARE == ulPenEndCap)
-				arAttributes.push_back({L"stroke-linecap", L"square"});
-			else if (PS_STARTCAP_ROUND == ulPenStartCap || PS_ENDCAP_ROUND == ulPenEndCap)
-				arAttributes.push_back({L"stroke-linecap", L"round"});
-
-			if (PS_JOIN_MITER == ulPenJoin)
-				arAttributes.push_back({L"stroke-linejoin", L"miter"});
-			else if (PS_JOIN_BEVEL == ulPenJoin)
-				arAttributes.push_back({L"stroke-linejoin", L"bevel"});
-			else if (PS_JOIN_ROUND == ulPenJoin)
-				arAttributes.push_back({L"stroke-linejoin", L"round"});
-		}
 	}
 
 	void CInterpretatorSvgBase::AddFill(NodeAttributes &arAttributes, double dWidth, double dHeight)
@@ -479,19 +617,21 @@ namespace MetaFile
 			CEmfPlusPen *pPen = dynamic_cast<CEmfPlusPen*>(m_pParser->GetPen());
 
 			if (NULL != pPen)
-				pBrush = pPen->Brush;
+				pBrush = pPen->pBrush;
 		}
 
 		if (NULL == pBrush)
 			pBrush = m_pParser->GetBrush();
 
-		if (NULL == pBrush || BS_NULL == pBrush->GetStyle())
+		unsigned int unBrushStyle = pBrush->GetStyle();
+
+		if (NULL == pBrush || BS_NULL == unBrushStyle)
 		{
 			arAttributes.push_back({L"fill", L"none"});
 			return;
 		}
 
-		switch (pBrush->GetStyle())
+		switch (unBrushStyle)
 		{
 			case BS_SOLID:
 			{
@@ -565,11 +705,11 @@ namespace MetaFile
 		else
 			oOldTransform.Copy(m_pParser->GetTransform());
 
-		if (std::fabs(oOldTransform.M11) > MAXTRANSFORMSCALE || std::fabs(oOldTransform.M22) > MAXTRANSFORMSCALE)
-		{
-			oOldTransform.M11 /= std::fabs(oOldTransform.M11);
-			oOldTransform.M22 /= std::fabs(oOldTransform.M22);
-		}
+//		if (std::fabs(oOldTransform.M11) > MAXTRANSFORMSCALE || std::fabs(oOldTransform.M22) > MAXTRANSFORMSCALE)
+//		{
+//			oOldTransform.M11 /= std::fabs(oOldTransform.M11);
+//			oOldTransform.M22 /= std::fabs(oOldTransform.M22);
+//		}
 
 		bool bScale = false, bTranslate = false;
 
@@ -606,7 +746,7 @@ namespace MetaFile
 			                        ConvertToWString(oOldTransform.M12) + L',' +
 			                        ConvertToWString(oOldTransform.M21) + L',' +
 			                        ConvertToWString(oOldTransform.M22) + L',' +
-			                        ConvertToWString(oOldTransform.Dx) + L',' + ConvertToWString(oOldTransform.Dy) + L')';
+			                        ConvertToWString(oOldTransform.Dx)  + L',' + ConvertToWString(oOldTransform.Dy) + L')';
 		}
 		else return;
 
@@ -616,8 +756,39 @@ namespace MetaFile
 			arAttributes.push_back({L"transform", wsValue});
 	}
 
-	void CInterpretatorSvgBase::AddClip(NodeAttributes &arAttributes)
+	void CInterpretatorSvgBase::AddClip()
 	{
+		if (m_bUpdatedClip || !OpenClip())
+			return;
+
+		m_bUpdatedClip = true;
+	}
+	
+	bool CInterpretatorSvgBase::OpenClip()
+	{
+		CloseClip();
+		
+		CClip *pClip = m_pParser->GetClip();
+		
+		if (NULL == pClip || pClip->Empty()) 
+			return false;
+
+		pClip->DrawOnRenderer(this);
+
+		WriteNodeBegin(L"g", {{L"clip-path", L"url(#" + m_oClip.GetClipId() + L')'}});
+		m_oClip.BeginClip();
+		
+		return true;
+	}
+	
+	void CInterpretatorSvgBase::CloseClip()
+	{
+		if (!m_oClip.StartedClip())
+			return;
+
+		WriteNodeEnd(L"g");
+		m_oClip.CloseClip();
+		m_wsDefs += m_oClip.GetClip();
 	}
 
 	void CInterpretatorSvgBase::AddNoneFill(NodeAttributes &arAttributes) const
@@ -630,17 +801,122 @@ namespace MetaFile
 		if (NULL != m_pParser)
 			return m_pParser->GetCurPos();
 
-		TPointD oCurPos;
-
-		oCurPos.x = m_oViewport.dLeft;
-		oCurPos.y = m_oViewport.dRight;
-
-		return oCurPos;
+		return TPointD(m_oViewport.dLeft, m_oViewport.dRight);
 	}
 
-	std::wstring CInterpretatorSvgBase::CreatePath(const IPath *pPath, const TXForm *pTransform)
+	std::wstring CInterpretatorSvgBase::CreatePath(const CPath& oPath, const TXForm *pTransform)
 	{
-		return std::wstring();
+		if (NULL == m_pParser || oPath.Empty())
+			return std::wstring();
+
+		std::wstring wsValue, wsMoveValue;
+		BYTE oLastType = 0x00;
+
+		TXForm oTransform;
+
+		if (NULL != pTransform)
+			oTransform.Copy(pTransform);
+
+		for (const CPathCommandBase* pCommand : oPath.GetCommands())
+		{
+			if (PATH_COMMAND_MOVETO != pCommand->GetType() && !wsMoveValue.empty())
+			{
+				wsValue += wsMoveValue;
+				wsMoveValue.clear();
+			}
+			switch ((unsigned int)pCommand->GetType())
+			{
+				case PATH_COMMAND_MOVETO:
+				{
+					CPathCommandMoveTo* pMoveTo = (CPathCommandMoveTo*)pCommand;
+
+					TPointD oPoint(pMoveTo->GetX(), pMoveTo->GetY());
+					oTransform.Apply(oPoint.X, oPoint.Y);
+
+					wsMoveValue = L"M " + ConvertToWString(oPoint.X) + L',' +  ConvertToWString(oPoint.Y) + L' ';
+
+					oLastType = PATH_COMMAND_MOVETO;
+
+					break;
+				}
+				case PATH_COMMAND_LINETO:
+				{
+					CPathCommandLineTo* pLineTo = (CPathCommandLineTo*)pCommand;
+
+					TPointD oPoint(pLineTo->GetX(), pLineTo->GetY());
+					oTransform.Apply(oPoint.X, oPoint.Y);
+
+					if (PATH_COMMAND_LINETO != oLastType)
+					{
+						oLastType = PATH_COMMAND_LINETO;
+						wsValue += L"L ";
+					}
+
+					wsValue += ConvertToWString(oPoint.X) + L',' +  ConvertToWString(oPoint.Y) + L' ';
+
+					break;
+				}
+				case PATH_COMMAND_CURVETO:
+				{
+					CPathCommandCurveTo* pCurveTo = (CPathCommandCurveTo*)pCommand;
+
+					if (PATH_COMMAND_CURVETO != oLastType)
+					{
+						oLastType = PATH_COMMAND_CURVETO;
+						wsValue += L"C ";
+					}
+
+					TPointD oPoint1(pCurveTo->GetX1(), pCurveTo->GetY1()), oPoint2(pCurveTo->GetX2(), pCurveTo->GetY2()), oPointE(pCurveTo->GetXE(), pCurveTo->GetYE());
+					oTransform.Apply(oPoint1.X, oPoint1.Y);
+					oTransform.Apply(oPoint2.X, oPoint2.Y);
+					oTransform.Apply(oPointE.X, oPointE.Y);
+
+					wsValue +=	ConvertToWString(oPoint1.X) + L',' + ConvertToWString(oPoint1.Y)  + L' ' +
+					            ConvertToWString(oPoint2.X) + L',' + ConvertToWString(oPoint2.Y) + L' ' +
+					            ConvertToWString(oPointE.X) + L',' + ConvertToWString(oPointE.Y) + L' ';
+
+					break;
+				}
+				case PATH_COMMAND_ARCTO:
+				{
+					CPathCommandArcTo* pArcTo = (CPathCommandArcTo*)pCommand;
+
+					TPointD oPoint1(pArcTo->GetLeft(), pArcTo->GetTop()), oPoint2(pArcTo->GetRight(), pArcTo->GetBottom());
+
+					oTransform.Apply(oPoint1.X, oPoint1.Y);
+					oTransform.Apply(oPoint2.X, oPoint2.Y);
+
+					double dXRadius = std::fabs(oPoint2.X - oPoint1.X) / 2;
+					double dYRadius = std::fabs(oPoint2.Y - oPoint1.X) / 2;
+
+					double dEndX = (oPoint2.X + oPoint1.X) / 2 + dXRadius  * cos((pArcTo->GetSweepAngle()) * M_PI / 180);
+					double dEndY = (oPoint2.Y + oPoint1.X) / 2 + dYRadius  * sin((pArcTo->GetSweepAngle()) * M_PI / 180);
+
+					wsValue += L"A " + ConvertToWString(dXRadius) + L' ' +
+					           ConvertToWString(dYRadius) + L' ' +
+					           L"0 " +
+					           ((std::fabs(pArcTo->GetSweepAngle() - pArcTo->GetStartAngle()) <= 180) ? L"0" : L"1") + L' ' +
+					           ((std::fabs(pArcTo->GetSweepAngle() - pArcTo->GetStartAngle()) <= 180) ? L"1" : L"0") + L' ' +
+					           ConvertToWString(dEndX) + L' ' +
+					           ConvertToWString(dEndY) + L' ';
+
+					oLastType = PATH_COMMAND_ARCTO;
+
+					break;
+				}
+				case PATH_COMMAND_CLOSE:
+				{
+					wsValue += L"Z ";
+					oLastType = PATH_COMMAND_CLOSE;
+					break;
+				}
+			}
+		}
+
+		if (!wsValue.empty() && wsValue[0] != L'M')
+			wsValue.insert(0, L"M " + ConvertToWString(m_pParser->GetCurPos().X) + L',' + ConvertToWString(m_pParser->GetCurPos().Y) + L' ');
+
+		return wsValue;
 	}
 
 	std::wstring CInterpretatorSvgBase::CreateHatchStyle(unsigned int unHatchStyle, double dWidth, double dHeight)
@@ -658,8 +934,8 @@ namespace MetaFile
 				dStrokeWidth = 1. / m_pParser->GetTransform()->M11;
 		}
 
-		if (0 != m_oViewport.GetWidth() && 0 != m_oSizeWindow.x)
-			dStrokeWidth *= m_oViewport.GetWidth() / m_oSizeWindow.x;
+		if (0 != m_oViewport.GetWidth() && 0 != m_oSizeWindow.X)
+			dStrokeWidth *= m_oViewport.GetWidth() / m_oSizeWindow.X;
 
 		std::wstring wsStrokeColor = L"rgba(" + INTCOLOR_TO_RGB(m_pParser->GetBrush()->GetColor()) + L"," + ConvertToWString(m_pParser->GetBrush()->GetAlpha(), 0) + L")";
 		std::wstring wsBgColor;
@@ -750,8 +1026,8 @@ namespace MetaFile
 				dStrokeWidth = 1. / m_pParser->GetTransform()->M11;
 		}
 
-		if (0 != m_oViewport.GetWidth() && 0 != m_oSizeWindow.x)
-			dStrokeWidth *= m_oViewport.GetWidth() / m_oSizeWindow.x;
+		if (0 != m_oViewport.GetWidth() && 0 != m_oSizeWindow.X)
+			dStrokeWidth *= m_oViewport.GetWidth() / m_oSizeWindow.X;
 
 		std::wstring wsWidth  = ConvertToWString(dStrokeWidth * unWidth);
 		std::wstring wsHeight = ConvertToWString(dStrokeWidth * unHeight);
@@ -1377,10 +1653,10 @@ namespace MetaFile
 	void CHatchGenerator::AddLine(const TPointD& oPoint1, const TPointD& oPoint2)
 	{
 		m_oStringBuilder.WriteNodeBegin(L"line", true);
-		m_oStringBuilder.WriteAttribute(L"x1", ConvertToWString(m_dStrokeWidth * oPoint1.x));
-		m_oStringBuilder.WriteAttribute(L"y1", ConvertToWString(m_dStrokeWidth * oPoint1.y));
-		m_oStringBuilder.WriteAttribute(L"x2", ConvertToWString(m_dStrokeWidth * oPoint2.x));
-		m_oStringBuilder.WriteAttribute(L"y2", ConvertToWString(m_dStrokeWidth * oPoint2.y));
+		m_oStringBuilder.WriteAttribute(L"x1", ConvertToWString(m_dStrokeWidth * oPoint1.X));
+		m_oStringBuilder.WriteAttribute(L"y1", ConvertToWString(m_dStrokeWidth * oPoint1.Y));
+		m_oStringBuilder.WriteAttribute(L"x2", ConvertToWString(m_dStrokeWidth * oPoint2.X));
+		m_oStringBuilder.WriteAttribute(L"y2", ConvertToWString(m_dStrokeWidth * oPoint2.Y));
 		m_oStringBuilder.WriteAttribute(L"stroke", L"rgb(" + INTCOLOR_TO_RGB(m_nStrokeColor) + L')');
 		m_oStringBuilder.WriteAttribute(L"stroke-width", ConvertToWString(m_dStrokeWidth));
 		m_oStringBuilder.WriteNodeEnd(L"line", true, true);
@@ -1395,10 +1671,10 @@ namespace MetaFile
 	void CHatchGenerator::AddPoint(const TPointD& oPoint)
 	{
 		m_oStringBuilder.WriteNodeBegin(L"line", true);
-		m_oStringBuilder.WriteAttribute(L"x1", ConvertToWString(m_dStrokeWidth * oPoint.x));
-		m_oStringBuilder.WriteAttribute(L"y1", ConvertToWString(m_dStrokeWidth * oPoint.y));
-		m_oStringBuilder.WriteAttribute(L"x2", ConvertToWString(m_dStrokeWidth * (oPoint.x + 1)));
-		m_oStringBuilder.WriteAttribute(L"y2", ConvertToWString(m_dStrokeWidth * oPoint.y));
+		m_oStringBuilder.WriteAttribute(L"x1", ConvertToWString(m_dStrokeWidth * oPoint.X));
+		m_oStringBuilder.WriteAttribute(L"y1", ConvertToWString(m_dStrokeWidth * oPoint.Y));
+		m_oStringBuilder.WriteAttribute(L"x2", ConvertToWString(m_dStrokeWidth * (oPoint.X + 1)));
+		m_oStringBuilder.WriteAttribute(L"y2", ConvertToWString(m_dStrokeWidth * oPoint.Y));
 		m_oStringBuilder.WriteAttribute(L"stroke", L"rgb(" + INTCOLOR_TO_RGB(m_nStrokeColor) + L')');
 		m_oStringBuilder.WriteAttribute(L"stroke-width", ConvertToWString(m_dStrokeWidth));
 		m_oStringBuilder.WriteNodeEnd(L"line", true, true);
@@ -1445,6 +1721,104 @@ namespace MetaFile
 	void CHatchGenerator::GenerateEndPattern()
 	{
 		m_oStringBuilder.WriteNodeEnd(L"pattern");
+	}
+
+	CSvgClip::CSvgClip()
+		: m_bStartClip(false)
+	{}
+
+	void CSvgClip::Reset()
+	{
+		m_arValues.clear();
+	}
+
+	void CSvgClip::BeginClip()
+	{
+		m_bStartClip = true;
+	}
+
+	void CSvgClip::CloseClip()
+	{
+		m_bStartClip = false;
+	}
+
+	bool CSvgClip::StartedClip() const
+	{
+		return m_bStartClip;
+	}
+
+	bool CSvgClip::Empty() const
+	{
+		return m_arValues.empty();
+	}
+
+	void CSvgClip::AddClipValue(const std::wstring &wsId, const std::wstring &wsValue, int nClipMode)
+	{
+		if (RGN_COPY == nClipMode)
+			m_arValues.clear();
+
+		m_arValues.push_back({wsId, wsValue, nClipMode});
+	}
+
+	std::wstring CSvgClip::GetClip() const
+	{
+		if (m_arValues.empty())
+			return std::wstring();
+
+		std::wstring wsClip;
+
+		for (const TClipValue& oClipValue : m_arValues)
+		{
+			switch (oClipValue.m_nClipMode)
+			{
+			case RGN_AND:
+			{
+				size_t unPosition = wsClip.find(L">", wsClip.rfind(L"<clipPath"));
+
+				if (std::wstring::npos != unPosition)
+					wsClip.insert(unPosition, L" clip-path=\"url(#" + oClipValue.m_wsId + L")\"");
+
+				wsClip += L"<clipPath id=\"" + oClipValue.m_wsId + L"\">" + oClipValue.m_wsValue + L"</clipPath>";
+				break;
+			}
+			case RGN_OR:
+			{
+				if (wsClip.empty())
+					wsClip += L"<clipPath id=\"" + oClipValue.m_wsId + L"\">" + oClipValue.m_wsValue + L"</clipPath>";
+				else
+					wsClip.insert(wsClip.length() - 11, oClipValue.m_wsValue);
+				break;
+			}
+			case RGN_XOR:
+			{
+				size_t unPosition = wsClip.find(L">", wsClip.rfind(L"<clipPath"));
+
+				if (std::wstring::npos != unPosition)
+					wsClip.insert(unPosition, L" clip-rule=\"evenodd\"");
+
+				if (wsClip.empty())
+					wsClip += L"<clipPath id=\"" + oClipValue.m_wsId + L"\">" + oClipValue.m_wsValue + L"</clipPath>";
+				else
+					wsClip.insert(wsClip.length() - 11, oClipValue.m_wsValue);
+				break;
+			}
+			case RGN_COPY:
+			{
+				wsClip = L"<clipPath id=\"" + oClipValue.m_wsId + L"\">" + oClipValue.m_wsValue + L"</clipPath>";
+				break;
+			}
+			}
+		}
+
+		return wsClip;
+	}
+
+	std::wstring CSvgClip::GetClipId() const
+	{
+		if (m_arValues.empty())
+			return std::wstring();
+
+		return m_arValues.front().m_wsId;
 	}
 
 }

@@ -1,5 +1,5 @@
 ﻿/*
- * (c) Copyright Ascensio System SIA 2010-2019
+ * (c) Copyright Ascensio System SIA 2010-2023
  *
  * This program is a free software product. You can redistribute it and/or
  * modify it under the terms of the GNU Affero General Public License (AGPL)
@@ -12,7 +12,7 @@
  * warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR  PURPOSE. For
  * details, see the GNU AGPL at: http://www.gnu.org/licenses/agpl-3.0.html
  *
- * You can contact Ascensio System SIA at 20A-12 Ernesta Birznieka-Upisha
+ * You can contact Ascensio System SIA at 20A-6 Ernesta Birznieka-Upish
  * street, Riga, Latvia, EU, LV-1050.
  *
  * The  interactive user interfaces in modified source and object code versions
@@ -99,7 +99,7 @@ namespace MetaFile
 			return ((CEmfInterpretatorSvg*)m_oEmfFile.GetEmfParser()->GetInterpretator())->GetFile();
 		}
 	#endif
-        return L"";
+		return L"";
 	}
 
 #ifdef METAFILE_SUPPORT_WMF_EMF
@@ -355,6 +355,7 @@ namespace MetaFile
 			m_lType = c_lMetaSvg;
 			return true;
 		}
+
 	#endif
 
 		return false;
@@ -527,30 +528,30 @@ namespace MetaFile
 			case c_lMetaWmf:
 			{
 				const TRectD& oRect = m_oWmfFile.GetBounds();
-				*pdX = oRect.dLeft;
-				*pdY = oRect.dTop;
-				*pdW = oRect.dRight - oRect.dLeft;
-				*pdH = oRect.dBottom - oRect.dTop;
+				*pdX = oRect.Left;
+				*pdY = oRect.Top;
+				*pdW = oRect.Right - oRect.Left;
+				*pdH = oRect.Bottom - oRect.Top;
 				break;
 			}
 			case c_lMetaEmf:
 			{
-				TEmfRectL* pRect = m_oEmfFile.GetBounds();
-				*pdX = pRect->lLeft;
-				*pdY = pRect->lTop;
-				*pdW = pRect->lRight - pRect->lLeft;
-				*pdH = pRect->lBottom - pRect->lTop;
+				TRectL* pRect = m_oEmfFile.GetBounds();
+				*pdX = pRect->Left;
+				*pdY = pRect->Top;
+				*pdW = pRect->Right - pRect->Left;
+				*pdH = pRect->Bottom - pRect->Top;
 				break;
 			}
 		#endif
 		#ifdef METAFILE_SUPPORT_SVM
 			case c_lMetaSvm:
 			{
-				TRect* pRect = m_oSvmFile.GetBounds();
-				*pdX = pRect->nLeft;
-				*pdY = pRect->nTop;
-				*pdW = pRect->nRight - pRect->nLeft;
-				*pdH = pRect->nBottom - pRect->nTop;
+				TRectL* pRect = m_oSvmFile.GetBounds();
+				*pdX = pRect->Left;
+				*pdY = pRect->Top;
+				*pdW = pRect->Right - pRect->Left;
+				*pdH = pRect->Bottom - pRect->Top;
 
 				if (*pdW > 10000 || *pdH > 10000)
 				{
@@ -563,10 +564,7 @@ namespace MetaFile
 		#ifdef METAFILE_SUPPORT_SVG
 			case c_lMetaSvg:
 			{
-				*pdX = 0;
-				*pdY = 0;
-				*pdW = m_oSvgFile.get_Width();
-				*pdH = m_oSvgFile.get_Height();
+				m_oSvgFile.GetBounds(*pdX, *pdY, *pdW, *pdH);
 				break;
 			}
 		#endif

@@ -1,5 +1,5 @@
 ﻿/*
- * (c) Copyright Ascensio System SIA 2010-2019
+ * (c) Copyright Ascensio System SIA 2010-2023
  *
  * This program is a free software product. You can redistribute it and/or
  * modify it under the terms of the GNU Affero General Public License (AGPL)
@@ -12,7 +12,7 @@
  * warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR  PURPOSE. For
  * details, see the GNU AGPL at: http://www.gnu.org/licenses/agpl-3.0.html
  *
- * You can contact Ascensio System SIA at 20A-12 Ernesta Birznieka-Upisha
+ * You can contact Ascensio System SIA at 20A-6 Ernesta Birznieka-Upish
  * street, Riga, Latvia, EU, LV-1050.
  *
  * The  interactive user interfaces in modified source and object code versions
@@ -32,21 +32,29 @@
 #include "../DocxFlat.h"
 #include "Vml.h"
 #include "VmlOfficeDrawing.h"
+#include "VmlWord.h"
 
 #include "Paragraph.h"
 #include "Annotations.h"
 #include "Run.h"
 #include "RunProperty.h"
 #include "ParagraphProperty.h"
+#include "SectionProperty.h"
 #include "Sdt.h"
 #include "Hyperlink.h"
 #include "Table.h"
+#include "Pict.h"
 
 #include "../Math/oMathPara.h"
 #include "../Math/OMath.h"
 
 #include "../../XlsxFormat/Drawing/CellAnchor.h"
+#include "../../XlsxFormat/Drawing/FromTo.h"
 
+#include "../../../MsBinaryFile/Common/Vml/PPTShape/CustomGeomShape.h"
+#include "../../../MsBinaryFile/Common/Vml/PPTShape/Ppt2PptxShapeConverter.h"
+
+#include "../../../DesktopEditor/raster/ImageFileFormatChecker.h"
 
 namespace OOX
 {
@@ -176,6 +184,41 @@ namespace OOX
 					pItem = new OOX::VmlWord::CWrap(document);
 				else if (L"w10:wrap" == sName)
 					pItem = new OOX::VmlWord::CWrap(document);
+				else if (L"w:binData" == sName)
+				{
+					OOX::Logic::CBinData oBinData;
+					oBinData.fromXML(oReader);
+
+					if (oBinData.m_sData.IsInit())
+					{
+						OOX::CDocxFlat* docx_flat = dynamic_cast<OOX::CDocxFlat*>(document);
+						if (docx_flat)
+						{
+							smart_ptr<OOX::Image> pImageFile = smart_ptr<OOX::Image>(new OOX::Image(document, true));
+
+							int dstLen = Base64::Base64DecodeGetRequiredLength((int)oBinData.m_sData->size());
+							pImageFile->m_Data.resize(dstLen);
+							Base64::Base64Decode(oBinData.m_sData->c_str(), (int)oBinData.m_sData->size(), pImageFile->m_Data.data(), &dstLen);
+							pImageFile->m_Data.resize(dstLen);
+
+							CImageFileFormatChecker fileChecker;
+							std::wstring ext = fileChecker.DetectFormatByData(pImageFile->m_Data.data(), dstLen);
+							if (false == ext.empty())
+							{
+								OOX::CPath filename(L"image." + ext);
+								pImageFile->set_filename(filename, false, true);
+
+								NSCommon::smart_ptr<OOX::File> file = pImageFile.smart_dynamic_cast<OOX::File>();
+								const OOX::RId rId = docx_flat->m_currentContainer->Add(file);
+
+								if (oBinData.m_sName.IsInit())
+								{
+									docx_flat->m_mapImages[*oBinData.m_sName] = file;
+								}
+							}
+						}
+					}
+				}
 
 				break;
 			case 'x':
@@ -189,8 +232,8 @@ namespace OOX
 
 			if (NULL != pItem)
 			{
-				m_arrItems.push_back(pItem);
 				pItem->fromXML(oReader);
+				m_arrItems.push_back(pItem);
 			}
 
 			if ((image_data) && (image_data->m_rId.IsInit()))
@@ -799,8 +842,8 @@ namespace OOX
 
 				if ( NULL != pItem )
 				{
-					m_arrElements.push_back( pItem );
 					pItem->fromXML(oReader);
+					m_arrElements.push_back( pItem );
 				}
 			}
 		}
@@ -825,6 +868,12 @@ namespace OOX
 			sResult += L">";
 
 			sResult += CVmlCommonElements::WriteElements();
+
+			for (size_t i = 0; i < m_arrElements.size(); ++i)
+			{
+				if (m_arrElements[i])
+					sResult += m_arrElements[i]->toXML();
+			}
 
 			sResult += L"</v:group>";
 
@@ -1161,7 +1210,7 @@ namespace OOX
 					if      ( _T("equationxml") == wsName ) m_sEquationXML = oReader.GetText();
 					break;
 				case 'o':
-					if      ( _T("o:gfxdata")   == wsName ) m_sGfxData       = oReader.GetText();
+					//if      ( _T("o:gfxdata")   == wsName ) m_sGfxData       = oReader.GetText();
 					break;
 				case 'p':
 					if      ( _T("path")        == wsName ) m_oPath        = oReader.GetText();
@@ -1222,6 +1271,117 @@ namespace OOX
 			CVmlCommonElements::mergeFrom(shape_type);
 		}
 
+		void CShape::ConvertToPptx(double width, double height)
+		{
+			NSGuidesVML::CFormulasManager oManager;
+			NSGuidesVML::CFormulaConverter oFormulaConverter;
+			std::vector<ODRAW::CHandle_> arHandles;
+			std::vector<long> arAdjustments;
+
+			ODRAW::CPath oPath;
+
+			if (m_oCoordSize.IsInit())
+			{
+				oFormulaConverter.m_lWidth = m_oCoordSize->GetX();
+				oFormulaConverter.m_lHeight = m_oCoordSize->GetY();
+
+				oPath.SetCoordsize(m_oCoordSize->GetX(), m_oCoordSize->GetY());
+			}
+
+			NSGuidesVML::CFormParam pParamCoef;
+			pParamCoef.m_eType = NSGuidesVML::ptValue;
+			pParamCoef.m_lParam = 65536;
+			pParamCoef.m_lCoef = 65536;
+
+			oFormulaConverter.ConvertCoef(pParamCoef);
+
+			if (m_sAdj.IsInit())
+			{
+				std::vector<std::wstring> arAdj;
+				boost::algorithm::split(arAdj, *m_sAdj, boost::algorithm::is_any_of(L","), boost::algorithm::token_compress_on);
+
+				for (size_t i = 0; i < arAdj.size(); ++i)
+				{
+					if (arAdj.empty()) arAdjustments.push_back(0);
+					else arAdjustments.push_back(XmlUtils::GetInteger(arAdj[i]));
+				}
+			}
+			for (size_t i = 0; i < m_arrItems.size(); ++i)
+			{
+				switch (m_arrItems[i]->getType())
+				{
+				case OOX::et_v_formulas:
+				{
+					OOX::Vml::CFormulas* formulas = dynamic_cast<OOX::Vml::CFormulas*>(m_arrItems[i]);
+					for (auto formula : formulas->m_arrItems)
+					{
+						oManager.AddFormula(formula->m_sEqn);
+					}
+					oManager.CalculateResults();
+				}break;
+				case OOX::et_v_path:
+				{
+
+				}break;
+				case OOX::et_v_handles:
+				{
+					OOX::Vml::CHandles* handles = dynamic_cast<OOX::Vml::CHandles*>(m_arrItems[i]);
+					for (auto handle : handles->m_arrItems)
+					{
+						CHandle_ oH;
+						if (handle->m_oPolar.IsInit()) oH.polar = handle->m_oPolar->ToString();
+						oH.position = handle->m_oPosition.ToString();
+						oH.radiusrange = handle->m_oRadiusRange.ToString();
+						oH.switchHandle = handle->m_oSwitch.ToString();
+						oH.xrange = handle->m_oXRange.ToString();
+						oH.yrange = handle->m_oYRange.ToString();
+
+						arHandles.push_back(oH);
+					}
+				}break;
+				}
+			}
+			oFormulaConverter.ConvertFormula(oManager.m_arFormulas);
+
+			std::wstring vml_path = m_oPath->GetValue();
+			oFormulaConverter.ConvertPath(vml_path, oPath);
+			oFormulaConverter.ConvertHandle(arHandles, arAdjustments, PPTShapes::sptNotPrimitive);
+			oFormulaConverter.SetTextRectDefault();
+	//---------------------------------------------------------------------------------------------------------------------	
+			std::wstring strXmlPPTX = L"<a:custGeom xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\"\>";
+
+			if (oFormulaConverter.m_oAdjRes.GetSize() == 0)
+				strXmlPPTX += L"<a:avLst/>";
+			else
+				strXmlPPTX += L"<a:avLst>" + oFormulaConverter.m_oAdjRes.GetXmlString() + L"</a:avLst>";
+
+			if (oFormulaConverter.m_oGuidsRes.GetSize() == 0)
+				strXmlPPTX += L"<a:gdLst>" + oFormulaConverter.m_oCoef.GetXmlString() + L"</a:gdLst>";
+			else
+				strXmlPPTX += L"<a:gdLst>" + oFormulaConverter.m_oCoef.GetXmlString() + oFormulaConverter.m_oGuidsRes.GetXmlString() + L"</a:gdLst>";
+
+			if (oFormulaConverter.m_oHandleRes.GetSize() == 0)
+				strXmlPPTX += L"<a:ahLst/>";
+			else
+				strXmlPPTX += L"<a:ahLst>" + oFormulaConverter.m_oHandleRes.GetXmlString() + L"</a:ahLst>";
+
+			strXmlPPTX += L"<a:cxnLst/>";
+
+			if (oFormulaConverter.m_oTextRect.GetSize() != 0)
+				strXmlPPTX += oFormulaConverter.m_oTextRect.GetXmlString();
+
+			strXmlPPTX += L"<a:pathLst>";
+			strXmlPPTX += oFormulaConverter.m_oPathRes.GetXmlString();
+			strXmlPPTX += L"</a:pathLst>";
+			strXmlPPTX += L"</a:custGeom>";
+		
+			XmlUtils::CXmlNode oNode;
+			if (oNode.FromXmlString(strXmlPPTX))
+			{
+				m_oCustGeom.Init();
+				m_oCustGeom->fromXML(oNode);
+			}
+		}
 		//--------------------------------------------------------------------------------
 		// CShapeType 14.1.2.20 (Part4)
 		//--------------------------------------------------------------------------------	
@@ -2094,7 +2254,8 @@ namespace OOX
 				std::wstring sName = oReader.GetName();
 				if ( _T("v:f") == sName )
 				{
-					OOX::Vml::CF *oF = new OOX::Vml::CF(oReader);
+					OOX::Vml::CF *oF = new OOX::Vml::CF();
+					*oF = oReader;
 					if (oF) m_arrItems.push_back( oF );
 				}
 			}
@@ -3031,7 +3192,8 @@ namespace OOX
 				std::wstring sName = oReader.GetName();
 				if ( _T("v:h") == sName )
 				{
-					OOX::Vml::CH *oH = new OOX::Vml::CH(oReader);
+					OOX::Vml::CH *oH = new OOX::Vml::CH();
+					*oH = oReader;
 					if (oH) m_arrItems.push_back( oH );
 				}
 			}

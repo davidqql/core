@@ -1,5 +1,5 @@
 ﻿/*
- * (c) Copyright Ascensio System SIA 2010-2019
+ * (c) Copyright Ascensio System SIA 2010-2023
  *
  * This program is a free software product. You can redistribute it and/or
  * modify it under the terms of the GNU Affero General Public License (AGPL)
@@ -12,7 +12,7 @@
  * warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR  PURPOSE. For
  * details, see the GNU AGPL at: http://www.gnu.org/licenses/agpl-3.0.html
  *
- * You can contact Ascensio System SIA at 20A-12 Ernesta Birznieka-Upisha
+ * You can contact Ascensio System SIA at 20A-6 Ernesta Birznieka-Upish
  * street, Riga, Latvia, EU, LV-1050.
  *
  * The  interactive user interfaces in modified source and object code versions
@@ -125,7 +125,7 @@ public:
 		default_cell_properties.clear();
 	}
 
-	odf_style_context *styles_context() {return odf_context_->styles_context();}
+	odf_style_context *styles_context() {return odf_context_->styles_context().get();}
 
 	odf_conversion_context *odf_context_; 
 
@@ -219,7 +219,7 @@ void odf_table_context::end_table()
 	{
 		if (impl_->current_table().table_width > 0)
 		{
-			style_table_properties * table_props = style_->content_.get_style_table_properties();
+			style_table_properties * table_props = style_->content_.add_get_style_table_properties();
 			if (table_props)
 			{
 				table_props->content_.style_width_ = length(length(impl_->current_table().table_width,length::pt).get_value_unit(length::cm),length::cm);
@@ -455,10 +455,10 @@ void odf_table_context::set_column_optimal(bool val)
 	style *style_ = dynamic_cast<style*>(impl_->current_table().columns.back().style_elm.get());
 
 	if (style_ == NULL) return;
-	style_table_column_properties *properties = style_->content_.get_style_table_column_properties();
-	if (properties == NULL) return;
+	style_table_column_properties * column_properties = style_->content_.add_get_style_table_column_properties();
+	if (column_properties == NULL) return;
 
-	properties->style_table_column_properties_attlist_.style_use_optimal_column_width_ = val;
+	column_properties->attlist_.style_use_optimal_column_width_ = val;
 }
 
 void odf_table_context::change_current_column_width(double width)
@@ -483,18 +483,18 @@ void odf_table_context::change_current_column_width(double width)
 	style *style_ = dynamic_cast<style*>(impl_->current_table().columns[index].style_elm.get());
 
 	if (style_ == NULL) return;
-	style_table_column_properties *properties = style_->content_.get_style_table_column_properties();
-	if (properties == NULL) return;
+	style_table_column_properties * column_properties = style_->content_.add_get_style_table_column_properties();
+	if (column_properties == NULL) return;
 
 	length length_ = length(length(width, length::pt).get_value_unit(length::cm), length::cm);
 	
-	if (!properties->style_table_column_properties_attlist_.style_column_width_)
-		properties->style_table_column_properties_attlist_.style_column_width_ = length_;
+	if (!column_properties->attlist_.style_column_width_)
+		column_properties->attlist_.style_column_width_ = length_;
 	else
 	{
-		double old_width = properties->style_table_column_properties_attlist_.style_column_width_->get_value_unit(length::pt);
+		double old_width = column_properties->attlist_.style_column_width_->get_value_unit(length::pt);
 		if (old_width < width/* && width < impl_->odf_context_->page_layout_context()->current_page_width_*/ && old_width < 9)
-			properties->style_table_column_properties_attlist_.style_column_width_ = length_;
+			column_properties->attlist_.style_column_width_ = length_;
 	}
 }
 
@@ -504,18 +504,18 @@ void odf_table_context::set_column_width(double width)
 	if (impl_->current_table().columns.empty())return;
 
 	style *style_ = dynamic_cast<style*>(impl_->current_table().columns.back().style_elm.get());
-	style_table_column_properties *properties = style_ ? style_->content_.get_style_table_column_properties() : NULL;
+	style_table_column_properties * column_properties = style_ ? style_->content_.add_get_style_table_column_properties() : NULL;
 
 	if (width > 0)
 	{
-		if (properties)
+		if (column_properties)
 		{
-			properties->style_table_column_properties_attlist_.style_column_width_ = length(length(width,length::pt).get_value_unit(length::cm),length::cm);
-			//properties->style_table_column_properties_attlist_.style_rel_column_width_ = length(length(width,length::pt).get_value_unit(length::cm),length::cm);
+			column_properties->attlist_.style_column_width_ = length(length(width,length::pt).get_value_unit(length::cm),length::cm);
+			//column_properties->attlist_.style_rel_column_width_ = length(length(width,length::pt).get_value_unit(length::cm),length::cm);
 
 			if (impl_->optimal_column_width)
 			{
-				properties->style_table_column_properties_attlist_.style_use_optimal_column_width_ = true;
+				column_properties->attlist_.style_use_optimal_column_width_ = true;
 			}
 		}
 
@@ -523,14 +523,14 @@ void odf_table_context::set_column_width(double width)
 	}
 	else
 	{
-		if (properties)
+		if (column_properties)
 		{
-			properties->style_table_column_properties_attlist_.style_use_optimal_column_width_ = true;
+			column_properties->attlist_.style_use_optimal_column_width_ = true;
 
 			if (impl_->default_column_width)
 			{
-				properties->style_table_column_properties_attlist_.style_column_width_ = length(length(impl_->default_column_width.get(), length::pt).get_value_unit(length::cm), length::cm);
-				//properties->style_table_column_properties_attlist_.style_rel_column_width_ = length(length(impl_->current_table().table_width,length::pt).get_value_unit(length::cm),length::cm);
+				column_properties->attlist_.style_column_width_ = length(length(impl_->default_column_width.get(), length::pt).get_value_unit(length::cm), length::cm);
+				//properties->attlist_.style_rel_column_width_ = length(length(impl_->current_table().table_width,length::pt).get_value_unit(length::cm),length::cm);
 			}
 		}
 		impl_->current_table().table_width += impl_->default_column_width.get_value_or(0);
@@ -549,7 +549,7 @@ void odf_table_context::set_row_height(double height)
 		//	style_table_row_properties *properties = style_->content_.get_style_table_row_properties();
 		//	if (properties)
 		//	{			
-		//		//properties->style_table_column_properties_attlist_.style_column_width_ = length(length(width,length::pt).get_value_unit(length::cm),length::cm);
+		//		//properties->attlist_.style_column_width_ = length(length(width,length::pt).get_value_unit(length::cm),length::cm);
 		//	}
 		//}
 		impl_->current_table().table_height += height;

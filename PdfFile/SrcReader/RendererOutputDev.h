@@ -1,5 +1,5 @@
 ﻿/*
- * (c) Copyright Ascensio System SIA 2010-2019
+ * (c) Copyright Ascensio System SIA 2010-2023
  *
  * This program is a free software product. You can redistribute it and/or
  * modify it under the terms of the GNU Affero General Public License (AGPL)
@@ -12,7 +12,7 @@
  * warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR  PURPOSE. For
  * details, see the GNU AGPL at: http://www.gnu.org/licenses/agpl-3.0.html
  *
- * You can contact Ascensio System SIA at 20A-12 Ernesta Birznieka-Upisha
+ * You can contact Ascensio System SIA at 20A-6 Ernesta Birznieka-Upish
  * street, Riga, Latvia, EU, LV-1050.
  *
  * The  interactive user interfaces in modified source and object code versions
@@ -138,6 +138,7 @@ namespace PdfReader
 		}
 		virtual GBool useTilingPatternFill()
         {
+			// TODO Доделать поддержку различных параметров TilingPattern
 			if (m_bDrawOnlyText)
 				return true;
 
@@ -225,10 +226,9 @@ namespace PdfReader
 		virtual void eoFill(GfxState *pGState);
 		virtual void FillStroke(GfxState *pGState);
 		virtual void EoFillStroke(GfxState *pGState);
-		virtual void tilingPatternFill(GfxState *pGState, Object *pStream, int nPaintType, Dict *pResourcesDict, double *pMatrix, double *pBBox, int nX0, int nY0, int nX1, int nY1, double dXStep, double dYStep);
+		virtual void tilingPatternFill(GfxState *pGState, Gfx *gfx, Object *pStream, int nPaintType, int nTilingType, Dict *pResourcesDict, double *pMatrix, double *pBBox, int nX0, int nY0, int nX1, int nY1, double dXStep, double dYStep);
 		virtual void StartTilingFill(GfxState *pGState);
 		virtual void EndTilingFill();
-		//todo overide
 		virtual GBool shadedFill(GfxState *state, GfxShading *shading);
 		virtual bool FunctionShadedFill(GfxState *pGState, GfxFunctionShading *pShading);
 		virtual bool AxialShadedFill(GfxState *pGState, GfxAxialShading    *pShading);

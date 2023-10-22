@@ -8,8 +8,6 @@ TEMPLATE = lib
 CONFIG += shared
 CONFIG += plugin
 
-CONFIG += core_static_link_libstd
-
 DEFINES += KERNEL_USE_DYNAMIC_LIBRARY_BUILDING
 
 # CONFIG
@@ -88,6 +86,10 @@ SOURCES += ./../DesktopEditor/common/Directory.cpp
 # SYSTEM
 HEADERS += ./../DesktopEditor/common/SystemUtils.h
 SOURCES += ./../DesktopEditor/common/SystemUtils.cpp
+
+# PROCESSENV
+HEADERS += ./../DesktopEditor/common/ProcessEnv.h
+SOURCES += ./../DesktopEditor/common/ProcessEnv.cpp
 
 core_windows {
     LIBS += -lRpcrt4

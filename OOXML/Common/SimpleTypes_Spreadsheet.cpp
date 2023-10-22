@@ -1,5 +1,5 @@
 ﻿/*
- * (c) Copyright Ascensio System SIA 2010-2019
+ * (c) Copyright Ascensio System SIA 2010-2023
  *
  * This program is a free software product. You can redistribute it and/or
  * modify it under the terms of the GNU Affero General Public License (AGPL)
@@ -12,7 +12,7 @@
  * warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR  PURPOSE. For
  * details, see the GNU AGPL at: http://www.gnu.org/licenses/agpl-3.0.html
  *
- * You can contact Ascensio System SIA at 20A-12 Ernesta Birznieka-Upisha
+ * You can contact Ascensio System SIA at 20A-6 Ernesta Birznieka-Upish
  * street, Riga, Latvia, EU, LV-1050.
  *
  * The  interactive user interfaces in modified source and object code versions
@@ -141,8 +141,8 @@ namespace SimpleTypes
 		EHtmlFormat CHtmlFormat::FromString(const std::wstring &sValue)
 		{
 			if      ( L"none"		== sValue )	this->m_eValue = htmlNone;
-			else if ( L"veryHidden" == sValue )	this->m_eValue = htmlRtf;
-			else if ( L"visible"	== sValue ) this->m_eValue = htmlAll;
+			else if ( L"rtf" == sValue )	this->m_eValue = htmlRtf;
+			else if ( L"all"	== sValue ) this->m_eValue = htmlAll;
 			else this->m_eValue = htmlNone;
 
 			return this->m_eValue;
@@ -533,8 +533,8 @@ namespace SimpleTypes
 				case 5:this->m_eValue = fontfamilyDecorative; break;
 				default:this->m_eValue = fontfamilyNotApplicable;
 				}
-				return this->m_eValue;
 			}
+			return this->m_eValue;
 		}
 
 		std::wstring CFontFamily::ToString  () const
@@ -2009,10 +2009,10 @@ namespace SimpleTypes
 
 		ESparklineAxisMinMax ST_SparklineAxisMinMax::FromString(const std::wstring &sValue)
 		{
-			if(L"individual" == sValue)			this->m_eValue = Individual;
-			else if(L"group" == sValue)		this->m_eValue = Group;
+			if(L"individual" == sValue)	this->m_eValue = Individual;
+			else if(L"group" == sValue)	this->m_eValue = Group;
 			else if(L"custom" == sValue)	this->m_eValue = Custom;
-			else 								this->m_eValue = Individual;
+			else							this->m_eValue = Individual;
 			return this->m_eValue;
 		}
 
@@ -2409,9 +2409,9 @@ namespace SimpleTypes
 			switch(this->m_eValue)
 			{
 			case layoutNone_ :		return L"none";
-			case layoutOverlapping:	return L"banner";
+			case layoutOverlapping:	return L"overlapping";
 			case layoutBanner :
-			default :				return L"overlapping";
+			default :				return L"banner";
 			}
 		}
 

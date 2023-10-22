@@ -1,4 +1,4 @@
-#include "CEmfParser.h"
+#include "../../Common/CPath.h"
 #include "CEmfPlusParser.h"
 
 #include "../EmfInterpretator/CEmfInterpretator.h"
@@ -56,6 +56,9 @@ namespace MetaFile
 
 			if (ulSize < 1)
 				continue;
+
+			if (ulSize - 8 > m_oStream.CanRead())
+				return SetError();
 
 			m_ulRecordPos	= m_oStream.Tell();
 			m_ulRecordSize	= ulSize - 8;
@@ -131,9 +134,10 @@ namespace MetaFile
 			case EMR_SMALLTEXTOUT:      Read_EMR_SMALLTEXTOUT(); break;
 			case EMR_STROKEANDFILLPATH: Read_EMR_STROKEANDFILLPATH(); break;
 			case EMR_STROKEPATH:        Read_EMR_STROKEPATH(); break;
-			case EMR_PAINTRGN:			Read_EMR_PAINTRGN(); break;
+			case EMR_PAINTRGN:          Read_EMR_PAINTRGN(); break;
 			case EMR_FILLRGN:           Read_EMR_FILLRGN(); break;
 			case EMR_FRAMERGN:          Read_EMR_FRAMERGN(); break;
+			case EMR_GRADIENTFILL:      Read_EMR_GRADIENTFILL(); break;
 				//-----------------------------------------------------------
 				// 2.3.7 Object Creation
 				//-----------------------------------------------------------
@@ -431,7 +435,7 @@ namespace MetaFile
 
 	void CEmfParser::Read_EMR_SETTEXTCOLOR()
 	{
-		TEmfColor oColor;
+		TRGBA oColor;
 
 		m_oStream >> oColor;
 
@@ -524,31 +528,31 @@ namespace MetaFile
 
 		std::vector<unsigned int> arUnused(2);
 
-		m_oStream >> pPen->PenStyle;
-		m_oStream >> pPen->Width;
+		m_oStream >> pPen->unPenStyle;
+		m_oStream >> pPen->unWidth;
 		m_oStream >> arUnused[0]; // BrushStyle
-		m_oStream >> pPen->Color;
+		m_oStream >> pPen->oColor;
 		m_oStream >> arUnused[1]; // BrushHatch
 
-		m_oStream >> pPen->NumStyleEntries;
+		m_oStream >> pPen->unNumStyleEntries;
 
 		current_size -= 24;
-		if (pPen->NumStyleEntries > 0)
+		if (pPen->unNumStyleEntries > 0)
 		{
-			current_size -= pPen->NumStyleEntries * 4;
-			pPen->StyleEntry = new unsigned int[pPen->NumStyleEntries];
-			if (!pPen->StyleEntry)
+			current_size -= pPen->unNumStyleEntries * 4;
+			pPen->pStyleEntry = new unsigned int[pPen->unNumStyleEntries];
+			if (!pPen->pStyleEntry)
 			{
 				delete pPen;
 				return SetError();
 			}
 
-			for (unsigned int ulIndex = 0; ulIndex < pPen->NumStyleEntries; ulIndex++)
-				m_oStream >> pPen->StyleEntry[ulIndex];
+			for (unsigned int ulIndex = 0; ulIndex < pPen->unNumStyleEntries; ulIndex++)
+				m_oStream >> pPen->pStyleEntry[ulIndex];
 		}
 		else
 		{
-			pPen->StyleEntry = NULL;
+			pPen->pStyleEntry = NULL;
 		}
 
 		// Пропускаем часть с картинкой, если она была
@@ -568,13 +572,13 @@ namespace MetaFile
 		if (!pPen)
 			return SetError();
 
-		m_oStream >> pPen->PenStyle;
+		m_oStream >> pPen->unPenStyle;
 
 		unsigned int widthX, widthY;
 
 		m_oStream >> widthX;
 		m_oStream >> widthY;
-		m_oStream >> pPen->Color;
+		m_oStream >> pPen->oColor;
 
 		if (NULL == m_pEmfPlusParser || !m_pEmfPlusParser->GetBanEMFProcesses())
 			HANDLE_EMR_CREATEPEN(ulPenIndex, widthX, pPen);
@@ -628,7 +632,7 @@ namespace MetaFile
 
 	void CEmfParser::Read_EMR_MOVETOEX()
 	{
-		TEmfPointL oPoint;
+		TPointL oPoint;
 
 		m_oStream >> oPoint;
 
@@ -648,7 +652,7 @@ namespace MetaFile
 
 	void CEmfParser::Read_EMR_FILLPATH()
 	{
-		TEmfRectL oBounds;
+		TRectL oBounds;
 
 		m_oStream >> oBounds;
 
@@ -668,7 +672,7 @@ namespace MetaFile
 
 	void CEmfParser::Read_EMR_SETWINDOWORGEX()
 	{
-		TEmfPointL oOrigin;
+		TPointL oOrigin;
 
 		m_oStream >> oOrigin;
 
@@ -678,7 +682,7 @@ namespace MetaFile
 
 	void CEmfParser::Read_EMR_SETWINDOWEXTEX()
 	{
-		TEmfSizeL oExtent;
+		TSizeL oExtent;
 
 		m_oStream >> oExtent;
 
@@ -701,7 +705,7 @@ namespace MetaFile
 
 	void CEmfParser::Read_EMR_SETVIEWPORTORGEX()
 	{
-		TEmfPointL oOrigin;
+		TPointL oOrigin;
 
 		m_oStream >> oOrigin;
 
@@ -711,7 +715,7 @@ namespace MetaFile
 
 	void CEmfParser::Read_EMR_SETVIEWPORTEXTEX()
 	{
-		TEmfSizeL oExtent;
+		TSizeL oExtent;
 
 		m_oStream >> oExtent;
 
@@ -788,7 +792,7 @@ namespace MetaFile
 
 	void CEmfParser::Read_EMR_SETBKCOLOR()
 	{
-		TEmfColor oColor;
+		TRGBA oColor;
 
 		m_oStream >> oColor;
 
@@ -799,7 +803,7 @@ namespace MetaFile
 	void CEmfParser::Read_EMR_EXCLUDECLIPRECT()
 	{
 		// TODO: Проверить как найдется файл
-		TEmfRectL oClip;
+		TRectL oClip;
 
 		m_oStream >> oClip;
 
@@ -865,7 +869,7 @@ namespace MetaFile
 
 	void CEmfParser::Read_EMR_INTERSECTCLIPRECT()
 	{
-		TEmfRectL oClip;
+		TRectL oClip;
 
 		m_oStream >> oClip;
 
@@ -885,7 +889,7 @@ namespace MetaFile
 
 	void CEmfParser::Read_EMR_SETBRUSHORGEX()
 	{
-		TEmfPointL oOrigin;
+		TPointL oOrigin;
 
 		m_oStream >> oOrigin;
 
@@ -896,7 +900,7 @@ namespace MetaFile
 	void CEmfParser::Read_EMR_ANGLEARC()
 	{
 		// TODO: Как найдутся файлы проверить данную запись.
-		TEmfPointL oCenter;
+		TPointL oCenter;
 		unsigned int unRadius;
 		double dStartAngle, dSweepAngle;
 
@@ -910,14 +914,14 @@ namespace MetaFile
 			HANDLE_EMR_ANGLEARC(oCenter, unRadius, dStartAngle, dSweepAngle);
 	}
 
-	void CEmfParser::Read_EMR_ARC_BASE(TEmfRectL& oBox, TEmfPointL& oStart, TEmfPointL& oEnd, double& dStartAngle, double& dSweepAngle)
+	void CEmfParser::Read_EMR_ARC_BASE(TRectL &oBox, TPointL &oStart, TPointL &oEnd, double& dStartAngle, double& dSweepAngle)
 	{
 		m_oStream >> oBox;
 		m_oStream >> oStart;
 		m_oStream >> oEnd;
 
-		dStartAngle = GetEllipseAngle(oBox.lLeft, oBox.lTop, oBox.lRight, oBox.lBottom, oStart.x, oStart.y);
-		dSweepAngle = GetEllipseAngle(oBox.lLeft, oBox.lTop, oBox.lRight, oBox.lBottom, oEnd.x, oEnd.y) - dStartAngle;
+		dStartAngle = GetEllipseAngle(oBox.Left, oBox.Top, oBox.Right, oBox.Bottom, oStart.X, oStart.Y);
+		dSweepAngle = GetEllipseAngle(oBox.Left, oBox.Top, oBox.Right, oBox.Bottom, oEnd.X, oEnd.Y) - dStartAngle;
 
 		// TODO: Проверить здесь
 		if (dSweepAngle < 0.001)
@@ -932,8 +936,8 @@ namespace MetaFile
 
 	void CEmfParser::Read_EMR_ARC()
 	{
-		TEmfRectL oBox;
-		TEmfPointL oStart, oEnd;
+		TRectL oBox;
+		TPointL oStart, oEnd;
 		double dStartAngle, dSweep;
 
 		Read_EMR_ARC_BASE(oBox, oStart, oEnd, dStartAngle, dSweep);
@@ -945,8 +949,8 @@ namespace MetaFile
 	void CEmfParser::Read_EMR_ARCTO()
 	{
 		// TODO: Как найдутся файлы проверить данную запись.
-		TEmfRectL oBox;
-		TEmfPointL oStart, oEnd;
+		TRectL oBox;
+		TPointL oStart, oEnd;
 		double dStartAngle, dSweep;
 
 		Read_EMR_ARC_BASE(oBox, oStart, oEnd, dStartAngle, dSweep);
@@ -958,8 +962,8 @@ namespace MetaFile
 	void CEmfParser::Read_EMR_CHORD()
 	{
 		// TODO: Как найдутся файлы проверить данную запись.
-		TEmfRectL oBox;
-		TEmfPointL oStart, oEnd;
+		TRectL oBox;
+		TPointL oStart, oEnd;
 		double dStartAngle, dSweep;
 
 		Read_EMR_ARC_BASE(oBox, oStart, oEnd, dStartAngle, dSweep);
@@ -970,7 +974,7 @@ namespace MetaFile
 
 	void CEmfParser::Read_EMR_ELLIPSE()
 	{
-		TEmfRectL oBox;
+		TRectL oBox;
 
 		m_oStream >> oBox;
 
@@ -1001,7 +1005,7 @@ namespace MetaFile
 
 	void CEmfParser::Read_EMR_LINETO()
 	{
-		TEmfPointL oPoint;
+		TPointL oPoint;
 
 		m_oStream >> oPoint;
 
@@ -1012,8 +1016,8 @@ namespace MetaFile
 	void CEmfParser::Read_EMR_PIE()
 	{
 		// TODO: Как найдутся файлы проверить данную запись.
-		TEmfRectL oBox;
-		TEmfPointL oStart, oEnd;
+		TRectL oBox;
+		TPointL oStart, oEnd;
 		double dStartAngle, dSweep;
 
 		Read_EMR_ARC_BASE(oBox, oStart, oEnd, dStartAngle, dSweep);
@@ -1024,17 +1028,17 @@ namespace MetaFile
 
 	void CEmfParser::Read_EMR_POLYBEZIER()
 	{
-		Read_EMR_POLYBEZIER_BASE<TEmfPointL>();
+		Read_EMR_POLYBEZIER_BASE<TPointL>();
 	}
 
 	void CEmfParser::Read_EMR_POLYBEZIER16()
 	{
-		Read_EMR_POLYBEZIER_BASE<TEmfPointS>();
+		Read_EMR_POLYBEZIER_BASE<TPointS>();
 	}
 
 	template<typename T>void CEmfParser::Read_EMR_POLYBEZIER_BASE()
 	{
-		TEmfRectL oBounds;
+		TRectL oBounds;
 		unsigned int ulCount;
 
 		m_oStream >> oBounds;
@@ -1060,17 +1064,17 @@ namespace MetaFile
 
 	void CEmfParser::Read_EMR_POLYBEZIERTO()
 	{
-		Read_EMR_POLYBEZIERTO_BASE<TEmfPointL>();
+		Read_EMR_POLYBEZIERTO_BASE<TPointL>();
 	}
 
 	void CEmfParser::Read_EMR_POLYBEZIERTO16()
 	{
-		Read_EMR_POLYBEZIERTO_BASE<TEmfPointS>();
+		Read_EMR_POLYBEZIERTO_BASE<TPointS>();
 	}
 
 	template<typename T>void CEmfParser::Read_EMR_POLYBEZIERTO_BASE()
 	{
-		TEmfRectL oBounds;
+		TRectL oBounds;
 		unsigned int ulCount;
 
 		m_oStream >> oBounds;
@@ -1094,12 +1098,12 @@ namespace MetaFile
 
 	void CEmfParser::Read_EMR_POLYDRAW()
 	{
-		Read_EMR_POLYDRAW_BASE<TEmfPointL>();
+		Read_EMR_POLYDRAW_BASE<TPointL>();
 	}
 
 	void CEmfParser::Read_EMR_POLYDRAW16()
 	{
-		Read_EMR_POLYDRAW_BASE<TEmfPointS>();
+		Read_EMR_POLYDRAW_BASE<TPointS>();
 	}
 
 	template<typename T>void CEmfParser::Read_EMR_POLYDRAW_BASE()
@@ -1107,7 +1111,7 @@ namespace MetaFile
 		// TODO: Как найдутся файлы проверить данную запись.
 		//bug #35006 - не прочитывается весь рекорд ... выравнивание?
 
-		TEmfRectL oBounds;
+		TRectL oBounds;
 		unsigned int unCount;
 
 		m_oStream >> oBounds;
@@ -1142,17 +1146,17 @@ namespace MetaFile
 
 	void CEmfParser::Read_EMR_POLYGON()
 	{
-		Read_EMR_POLYGON_BASE<TEmfPointL>();
+		Read_EMR_POLYGON_BASE<TPointL>();
 	}
 
 	void CEmfParser::Read_EMR_POLYGON16()
 	{
-		Read_EMR_POLYGON_BASE<TEmfPointS>();
+		Read_EMR_POLYGON_BASE<TPointS>();
 	}
 
 	template<typename T>void CEmfParser::Read_EMR_POLYGON_BASE()
 	{
-		TEmfRectL oBounds;
+		TRectL oBounds;
 		unsigned int ulCount;
 
 		m_oStream >> oBounds;
@@ -1172,17 +1176,17 @@ namespace MetaFile
 
 	void CEmfParser::Read_EMR_POLYLINE()
 	{
-		Read_EMR_POLYLINE_BASE<TEmfPointL>();
+		Read_EMR_POLYLINE_BASE<TPointL>();
 	}
 
 	void CEmfParser::Read_EMR_POLYLINE16()
 	{
-		Read_EMR_POLYLINE_BASE<TEmfPointS>();
+		Read_EMR_POLYLINE_BASE<TPointS>();
 	}
 
 	template<typename T>void CEmfParser::Read_EMR_POLYLINE_BASE()
 	{
-		TEmfRectL oBounds;
+		TRectL oBounds;
 		unsigned int ulCount;
 
 		m_oStream >> oBounds;
@@ -1202,17 +1206,17 @@ namespace MetaFile
 
 	void CEmfParser::Read_EMR_POLYLINETO()
 	{
-		Read_EMR_POLYLINETO_BASE<TEmfPointL>();
+		Read_EMR_POLYLINETO_BASE<TPointL>();
 	}
 
 	void CEmfParser::Read_EMR_POLYLINETO16()
 	{
-		Read_EMR_POLYLINETO_BASE<TEmfPointS>();
+		Read_EMR_POLYLINETO_BASE<TPointS>();
 	}
 
 	template<typename T>void CEmfParser::Read_EMR_POLYLINETO_BASE()
 	{
-		TEmfRectL oBounds;
+		TRectL oBounds;
 		unsigned int ulCount;
 
 		m_oStream >> oBounds;
@@ -1229,17 +1233,17 @@ namespace MetaFile
 
 	void CEmfParser::Read_EMR_POLYPOLYGON()
 	{
-		Read_EMR_POLYPOLYGON_BASE<TEmfPointL>();
+		Read_EMR_POLYPOLYGON_BASE<TPointL>();
 	}
 
 	void CEmfParser::Read_EMR_POLYPOLYGON16()
 	{
-		Read_EMR_POLYPOLYGON_BASE<TEmfPointS>();
+		Read_EMR_POLYPOLYGON_BASE<TPointS>();
 	}
 
 	template<typename T>void CEmfParser::Read_EMR_POLYPOLYGON_BASE()
 	{
-		TEmfRectL oBounds;
+		TRectL oBounds;
 		unsigned int ulNumberOfPolygons;
 		unsigned int ulTotalPointsCount;
 
@@ -1273,17 +1277,17 @@ namespace MetaFile
 
 	void CEmfParser::Read_EMR_POLYPOLYLINE()
 	{
-		Read_EMR_POLYPOLYLINE_BASE<TEmfPointL>();
+		Read_EMR_POLYPOLYLINE_BASE<TPointL>();
 	}
 
 	void CEmfParser::Read_EMR_POLYPOLYLINE16()
 	{
-		Read_EMR_POLYPOLYLINE_BASE<TEmfPointS>();
+		Read_EMR_POLYPOLYLINE_BASE<TPointS>();
 	}
 
 	template<typename T>void CEmfParser::Read_EMR_POLYPOLYLINE_BASE()
 	{
-		TEmfRectL oBounds;
+		TRectL oBounds;
 		unsigned int ulNumberOfPolylines;
 		unsigned int ulTotalPointsCount;
 
@@ -1322,23 +1326,23 @@ namespace MetaFile
 	void CEmfParser::Read_EMR_POLYTEXTOUTA()
 	{
 		// TODO: Как найдутся файлы проверить данную запись.
-		TEmfPolyTextoutA oText;
+		TPolyTextoutA oText;
 
 		//TODO: сделать сохранение в XML
 
 		m_oStream >> oText;
 
-		if (0 == oText.cStrings)
+		if (0 == oText.unCStrings)
 			return;
 
-		if (!oText.aEmrText)
+		if (!oText.arEmrText)
 			return SetError();
 
 		if (NULL == m_pEmfPlusParser || !m_pEmfPlusParser->GetBanEMFProcesses())
 		{
-			for (unsigned int unIndex = 0; unIndex < oText.cStrings; unIndex++)
+			for (unsigned int unIndex = 0; unIndex < oText.unCStrings; unIndex++)
 			{
-				DrawTextA(oText.aEmrText[unIndex], oText.iGraphicsMode);
+				DrawTextA(oText.arEmrText[unIndex], oText.unIGraphicsMode);
 			}
 		}
 	}
@@ -1346,29 +1350,29 @@ namespace MetaFile
 	void CEmfParser::Read_EMR_POLYTEXTOUTW()
 	{
 		// TODO: Как найдутся файлы проверить данную запись.
-		TEmfPolyTextoutW oText;
+		TPolyTextoutW oText;
 
 		//TODO: сделать сохранение в XML
 		m_oStream >> oText;
 
-		if (0 == oText.cStrings)
+		if (0 == oText.unCStrings)
 			return;
 
-		if (!oText.wEmrText)
+		if (!oText.arEmrText)
 			return SetError();
 
 		if (NULL == m_pEmfPlusParser || !m_pEmfPlusParser->GetBanEMFProcesses())
 		{
-			for (unsigned int unIndex = 0; unIndex < oText.cStrings; unIndex++)
+			for (unsigned int unIndex = 0; unIndex < oText.unCStrings; unIndex++)
 			{
-				DrawTextA(oText.wEmrText[unIndex], oText.iGraphicsMode);
+				DrawTextW(oText.arEmrText[unIndex], oText.unIGraphicsMode);
 			}
 		}
 	}
 
 	void CEmfParser::Read_EMR_RECTANGLE()
 	{
-		TEmfRectL oBox;
+		TRectL oBox;
 
 		m_oStream >> oBox;
 
@@ -1378,8 +1382,8 @@ namespace MetaFile
 
 	void CEmfParser::Read_EMR_ROUNDRECT()
 	{
-		TEmfRectL oBox;
-		TEmfSizeL oCorner;
+		TRectL oBox;
+		TSizeL oCorner;
 
 		m_oStream >> oBox;
 		m_oStream >> oCorner;
@@ -1390,8 +1394,8 @@ namespace MetaFile
 
 	void CEmfParser::Read_EMR_SETPIXELV()
 	{
-		TEmfPointL oPoint;
-		TEmfColor oColor;
+		TPointL oPoint;
+		TRGBA oColor;
 
 		m_oStream >> oPoint;
 		m_oStream >> oColor;
@@ -1412,7 +1416,7 @@ namespace MetaFile
 
 	void CEmfParser::Read_EMR_STROKEANDFILLPATH()
 	{
-		TEmfRectL oBounds;
+		TRectL oBounds;
 
 		m_oStream >> oBounds;
 
@@ -1422,12 +1426,45 @@ namespace MetaFile
 
 	void CEmfParser::Read_EMR_STROKEPATH()
 	{
-		TEmfRectL oBounds;
+		TRectL oBounds;
 
 		m_oStream >> oBounds;
 
 		if (NULL == m_pEmfPlusParser || !m_pEmfPlusParser->GetBanEMFProcesses())
 			HANDLE_EMR_STROKEPATH(oBounds);
+	}
+
+	void CEmfParser::Read_EMR_GRADIENTFILL()
+	{
+		TRectL oBounds;
+		unsigned int unVer, unTri, unMode;
+
+		m_oStream >> oBounds;
+		m_oStream >> unVer;
+		m_oStream >> unTri;
+		m_oStream >> unMode;
+
+		if (3 > unVer || 4 < unVer || 0 == unTri)
+			return;
+
+		std::vector<TTriVertex> arVertex(unVer);
+
+		for (TTriVertex& oVertexObject : arVertex)
+			m_oStream >> oVertexObject;
+
+		std::vector<std::pair<int, int>> arVertexIndexes(unTri);
+
+		for (std::pair<int, int>& oIndexes : arVertexIndexes)
+		{
+			m_oStream >> oIndexes.first;
+			m_oStream >> oIndexes.second;
+		}
+
+		if (4 == unVer)
+			m_oStream.Skip(unTri * 4);
+
+		if (NULL == m_pEmfPlusParser || !m_pEmfPlusParser->GetBanEMFProcesses())
+			HANDLE_EMR_GRADIENTFILL(arVertex, arVertexIndexes, unMode);
 	}
 
 	void CEmfParser::Read_EMR_COMMENT()
@@ -1478,33 +1515,48 @@ namespace MetaFile
 				oWmfParser.SetStream(m_oStream.GetCurPtr(), unWinMetafileSize);
 				oWmfParser.Scan();
 
-				if (!oWmfParser.CheckError())
+				if (oWmfParser.CheckError())
+					return;
+
+				if (NULL == m_pInterpretator)
+					HANDLE_EMR_EOF();
+				else if (InterpretatorType::Render == m_pInterpretator->GetType())
 				{
-					if (NULL != m_pInterpretator && InterpretatorType::Render == m_pInterpretator->GetType())
-					{
 						CMetaFileRenderer oWmfOut(&oWmfParser, ((CEmfInterpretatorRender*)m_pInterpretator)->GetRenderer());
 						oWmfParser.SetInterpretator(&oWmfOut);
 
 						oWmfParser.PlayFile();
 
-						m_bEof = true;
-					}
-					else if (NULL != m_pInterpretator && InterpretatorType::Svg == m_pInterpretator->GetType())
-					{
-						double dWidth, dHeight;
-
-						((CEmfInterpretatorSvg*)m_pInterpretator)->GetSize(dWidth, dHeight);
-
-						((CWmfParserBase*)&oWmfParser)->SetInterpretator(InterpretatorType::Svg, dWidth, dHeight);
-
-						oWmfParser.PlayFile();
-
-						((CEmfInterpretatorSvg*)m_pInterpretator)->SetXmlWriter(((CWmfInterpretatorSvg*)oWmfParser.GetInterpretator())->GetXmlWriter());
-
-						m_bEof = true;
-					}
+						HANDLE_EMR_EOF();
 				}
+				else if (NULL != m_pInterpretator && InterpretatorType::Svg == m_pInterpretator->GetType())
+				{
+					double dWidth, dHeight;
 
+					((CEmfInterpretatorSvg*)m_pInterpretator)->GetSize(dWidth, dHeight);
+
+					((CWmfParserBase*)&oWmfParser)->SetInterpretator(InterpretatorType::Svg, dWidth, dHeight);
+
+					XmlUtils::CXmlWriter *pXmlWriter = ((CEmfInterpretatorSvg*)m_pInterpretator)->GetXmlWriter();
+
+					TRectD oWmfRect = oWmfParser.GetBounds();
+					TRectL *pCuurentRect = GetBounds();
+
+					double dScaleX = std::abs((pCuurentRect->Right - pCuurentRect->Left) / (oWmfRect.Right - oWmfRect.Left));
+					double dScaleY = std::abs((pCuurentRect->Bottom - pCuurentRect->Top) / (oWmfRect.Bottom - oWmfRect.Top));
+
+					pXmlWriter->WriteNodeBegin(L"g", true);
+					pXmlWriter->WriteAttribute(L"transform", L"scale(" + std::to_wstring(dScaleX) + L',' + std::to_wstring(dScaleY) + L')');
+					pXmlWriter->WriteNodeEnd(L"g", true, false);
+
+					((CWmfInterpretatorSvg*)oWmfParser.GetInterpretator())->SetXmlWriter(pXmlWriter);
+
+					oWmfParser.PlayFile();
+
+					pXmlWriter->WriteNodeEnd(L"g", false, false);
+
+					HANDLE_EMR_EOF();
+				}
 
 				m_oStream.Skip(unWinMetafileSize);
 			}
@@ -1513,7 +1565,7 @@ namespace MetaFile
 
 	void CEmfParser::Read_EMR_FILLRGN()
 	{
-		TEmfRectL oBounds;
+		TRectL oBounds;
 		unsigned int unRgnDataSize, unIhBrush;
 
 		m_oStream >> oBounds;
@@ -1530,9 +1582,9 @@ namespace MetaFile
 		if (0x00000020 != oRegionDataHeader.unSize || 0x00000001 != oRegionDataHeader.unType || 0 == oRegionDataHeader.unCountRects)
 			return;
 
-		std::vector<TEmfRectL> arRects(oRegionDataHeader.unCountRects);
+		std::vector<TRectL> arRects(oRegionDataHeader.unCountRects);
 
-		for (TEmfRectL &oRect : arRects)
+		for (TRectL &oRect : arRects)
 			m_oStream >> oRect;
 
 		if (NULL == m_pEmfPlusParser || !m_pEmfPlusParser->GetBanEMFProcesses())
@@ -1541,7 +1593,7 @@ namespace MetaFile
 
 	void CEmfParser::Read_EMR_PAINTRGN()
 	{
-		TEmfRectL oBounds;
+		TRectL oBounds;
 		unsigned int unRgnDataSize;
 
 		m_oStream >> oBounds;
@@ -1557,9 +1609,9 @@ namespace MetaFile
 		if (0x00000020 != oRegionDataHeader.unSize || 0x00000001 != oRegionDataHeader.unType || 0 == oRegionDataHeader.unCountRects)
 			return;
 
-		std::vector<TEmfRectL> arRects(oRegionDataHeader.unCountRects);
+		std::vector<TRectL> arRects(oRegionDataHeader.unCountRects);
 
-		for (TEmfRectL &oRect : arRects)
+		for (TRectL &oRect : arRects)
 			m_oStream >> oRect;
 
 		if (NULL == m_pEmfPlusParser || !m_pEmfPlusParser->GetBanEMFProcesses())
@@ -1568,7 +1620,7 @@ namespace MetaFile
 
 	void CEmfParser::Read_EMR_FRAMERGN()
 	{
-		TEmfRectL oBounds;
+		TRectL oBounds;
 		unsigned int unRgnDataSize, unIhBrush;
 		int nWidth, nHeight;
 
@@ -1589,9 +1641,9 @@ namespace MetaFile
 		if (0x00000020 != oRegionDataHeader.unSize || 0x00000001 != oRegionDataHeader.unType || 0 == oRegionDataHeader.unCountRects)
 			return;
 
-		std::vector<TEmfRectL> arRects(oRegionDataHeader.unCountRects);
+		std::vector<TRectL> arRects(oRegionDataHeader.unCountRects);
 
-		for (TEmfRectL &oRect : arRects)
+		for (TRectL &oRect : arRects)
 			m_oStream >> oRect;
 
 		if (NULL == m_pEmfPlusParser || !m_pEmfPlusParser->GetBanEMFProcesses())
